@@ -116,7 +116,7 @@ function Browse() {
           ...query,
           featured,
           order: home ? "top" : query.order,
-          days: home ? "30" : query.days,
+          days: home ? "3000" : query.days,
           take: home ? 10 : 10,
           skip: pageParam,
           id: singlePost ? postId : undefined,
