@@ -1,3 +1,5 @@
-import Browse from "./browse.js";
+import CreateReactAppEntryPoint from "../App";
 
-export default Browse;
+export default function Home() {
+  return <CreateReactAppEntryPoint />;
+}

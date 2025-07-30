@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useQueryParams, withDefault, BooleanParam } from "next-query-params";
 import { useRouter } from "next/router";
@@ -46,7 +45,7 @@ const ExtraUI = () => {
   });
   const playMode = !query.edit;
 
-  const { data: session } = useSession();
+  const session = null; // No authentication in local mode
 
   let [copiedState, setCopiedState] = useState(null);
   const post = useStore((state) => state.post);

@@ -8,7 +8,11 @@ export default function Home() {
           <b>Welcome to Sandspiel Studio! 🧪</b>
         </p>
         <p>
-          A tool for creating {"&"} sharing Sandspiel
+          <strong>Running in Local Mode</strong> - Database features are disabled.
+          You can still create and experiment with Sandspiel elements using the editor!
+        </p>
+        <p>
+          A tool for creating &amp; sharing Sandspiel
           elements, made by Max Bittker and Lu Wilson. 
  
           Check out our{" "}
@@ -18,7 +22,7 @@ export default function Home() {
           for tutorials and updates!
         </p>
         <p>
-          Please be respectful and kind towards other users.
+          <strong>Click &ldquo;← Open Editor&rdquo; above to start creating!</strong>
         </p>
       </div>
     </>

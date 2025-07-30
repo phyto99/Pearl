@@ -7,18 +7,8 @@ import useStore, { globalState } from "./store";
 import BlocklyComponent from "./Blockly";
 import "./blocks/customblocks";
 import "./blocks/generator";
-import { loadPostFromServer } from "./loadPostFromServer";
 import { ToolboxBlocks } from "./blocks/ToolboxBlocks";
 import { generateCode } from "./blocks/generator";
-// import * as Sentry from "@sentry/browser";
-// import { BrowserTracing } from "@sentry/tracing";
-import { useRouter } from "next/router";
-import {
-  useQueryParams,
-  withDefault,
-  BooleanParam,
-  NumberParam,
-} from "next-query-params";
 
 // if (typeof window !== "undefined") {
 //   if (!window?.location?.host?.includes("localhost")) {
@@ -31,29 +21,16 @@ import {
 // }
 
 const App = () => {
-  const [query, setQuery] = useQueryParams({
-    edit: withDefault(BooleanParam, false),
-    id: NumberParam,
-  });
-  const playMode = !query.edit;
+  const playMode = false; // Always show editor
   let simpleWorkspace = useRef();
-  const router = useRouter();
   const selectedElement = useStore((state) => state.selectedElement);
   const xmls = useStore.getState().xmls;
 
-  /*useEffect(() => {
-    useStore.setState({
-      postId: router.query.id,
-    });
-  }, [router.query.id]);*/
-
   useEffect(() => {
-    const { post } = useStore.getState();
-    let ws = simpleWorkspace.current.primaryWorkspace;
-    globalState.workspace = ws;
-    if (post !== null) return;
-    const postId = router.route === "/post/[id]" ? router.query.id : undefined;
-    loadPostFromServer(postId);
+    if (simpleWorkspace.current) {
+      let ws = simpleWorkspace.current.primaryWorkspace;
+      globalState.workspace = ws;
+    }
   }, []);
 
   // Generate code when a post is loaded into the editor
@@ -104,7 +81,7 @@ const App = () => {
 
   // Generate code whenever you change something in the editor
   useEffect(() => {
-    if (simpleWorkspace.current && !playMode) {
+    if (simpleWorkspace.current) {
       let ws = simpleWorkspace.current.primaryWorkspace;
       globalState.workspace = ws;
       let cb = () => generateCode(selectedElement, ws);
@@ -113,11 +90,11 @@ const App = () => {
         ws.removeChangeListener(cb);
       };
     }
-  }, [simpleWorkspace, selectedElement, playMode, xmls]);
+  }, [simpleWorkspace, selectedElement, xmls]);
 
   // When you change the selected element, show that element's code in the editor
   useEffect(() => {
-    if (!simpleWorkspace.current || playMode) return;
+    if (!simpleWorkspace.current) return;
     simpleWorkspace.current.primaryWorkspace.clear();
     const xml =
       useStore.getState().xmls[useStore.getState().selectedElement ?? 0];
@@ -126,7 +103,7 @@ const App = () => {
       Xml.textToDom(xml),
       simpleWorkspace.current.primaryWorkspace
     );
-  }, [selectedElement, playMode]);
+  }, [selectedElement]);
 
   const loading = useStore((state) => state.loading);
   let filter = loading ? `brightness(1.0) contrast(0.1) saturate(0.1)` : "";
@@ -135,7 +112,7 @@ const App = () => {
       <BlocklyComponent
         style={{
           filter,
-          opacity: playMode ? "0.0" : "1.0",
+          opacity: "1.0",
           transition: "transform 0.5s ease-in-out, opacity 0.5s ease-in-out",
         }}
         ref={simpleWorkspace}

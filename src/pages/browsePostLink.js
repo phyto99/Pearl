@@ -1,6 +1,6 @@
 /* eslint-disable @next/next/no-img-element */
 import React, { useEffect, useRef, useState } from "react";
-import { useSession } from "next-auth/react";
+// Authentication disabled in local mode
 import * as timeago from "timeago.js";
 import useSound from "use-sound";
 import StarButton from "./star/StarButton";
@@ -27,13 +27,13 @@ import { copyTextToClipboard } from "../utils/clipboard.js";
 
 export const BrowsePostLink = ({ post: initPost, isReply, isParent }) => {
   const router = useRouter();
-  const { data: session } = useSession();
+  const session = null; // No authentication in local mode
   const [post, setPost] = useState(initPost);
   const [repliesVisible, setRepliesVisible] = useState(false);
   const [parentVisible, setParentVisible] = useState(false);
   const expandedPostId = useStore((state) => state.expandedPostId);
   const expanded = expandedPostId === post.id;
-  const mobile = window.innerWidth <= 700;
+  const mobile = typeof window !== 'undefined' ? window.innerWidth <= 700 : false;
 
   let stars = post?._count?.stars;
   const [starsOverride, setStarsOverride] = useState(null);
@@ -49,7 +49,7 @@ export const BrowsePostLink = ({ post: initPost, isReply, isParent }) => {
     isStarred = isStarredOverride;
   }
 
-  const href = `${window.location.protocol}//${window.location.host}/post/${post.id}`;
+  const href = typeof window !== 'undefined' ? `${window.location.protocol}//${window.location.host}/post/${post.id}` : '';
   const [play] = useSound("/media/delete.wav", {
     volume: 0.15,
   });

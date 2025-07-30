@@ -1,11 +1,11 @@
 /* eslint-disable @next/next/no-img-element */
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useInfiniteQuery } from "react-query";
 import { useInView } from "react-intersection-observer";
 
 // import { ReactQueryDevtools } from "react-query/devtools";
 import Dropdown from "react-dropdown";
-import { signIn, useSession } from "next-auth/react";
+// Authentication disabled in local mode
 import Link from "next/link";
 
 import "react-dropdown/style.css";
@@ -56,9 +56,9 @@ const optionsTime = [
 ];
 
 function Browse() {
-  const mobile = window.innerWidth <= 700;
+  const mobile = typeof window !== 'undefined' ? window.innerWidth <= 700 : false;
   const router = useRouter();
-  const { data: session } = useSession();
+  const session = null; // No authentication in local mode
 
   const [query, setQuery] = useQueryParams({
     //codeHash: StringParam,
@@ -67,7 +67,7 @@ function Browse() {
     order: withDefault(StringParam, "new"),
     days: StringParam,
     //featured: BooleanParam,
-    edit: withDefault(BooleanParam, false),
+    edit: withDefault(BooleanParam, true), // Default to editor mode
     id: NumberParam,
     admin: BooleanParam,
   });
@@ -100,49 +100,22 @@ function Browse() {
     useStore.setState({ postId });
   }*/
 
-  const {
-    isLoading,
-    error,
-    data,
-    isFetching,
-    isFetchingNextPage,
-    fetchNextPage,
-    hasNextPage,
-  } = useInfiniteQuery(
-    ["browseData", query, router],
-    async ({ pageParam = 0 }) => {
-      const result = await axios("/api/query", {
-        params: {
-          ...query,
-          featured,
-          order: home ? "top" : query.order,
-          days: home ? "3000" : query.days,
-          take: home ? 10 : 10,
-          skip: pageParam,
-          id: singlePost ? postId : undefined,
-          userId: !liked ? userId : undefined,
-          starredBy: liked ? userId : undefined,
-          admin: query.admin || query.admin === undefined ? true : undefined,
-        },
-      });
-      let results = result.data;
-      results.posts = results.posts.map((r) => {
-        r.metadata = JSON.parse(r.metadata);
-        return r;
-      });
-      return results;
-    },
-    {
-      // placeholderData: { pages: [placeHolderPosts] },
-      getPreviousPageParam: (firstPage) => firstPage.offset || 0,
-      getNextPageParam: (lastPage) => {
-        return lastPage?.offset || 0;
-      },
-    }
-  );
+  // Mock data for local mode - no database
+  const isLoading = false;
+  const error = null;
+  const data = {
+    pages: [{
+      posts: [],
+      offset: 0
+    }]
+  };
+  const isFetching = false;
+  const isFetchingNextPage = false;
+  const fetchNextPage = () => {};
+  const hasNextPage = false;
   const { ref, inView } = useInView();
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (inView) {
       fetchNextPage();
     }
@@ -269,10 +242,10 @@ function Browse() {
                 <button
                   onClick={(e) => {
                     e.preventDefault();
-                    signIn();
+                    alert("Authentication disabled in local mode");
                   }}
                 >
-                  Sign In
+                  Sign In (Disabled)
                 </button>
               )}
               {!mobile && (
@@ -282,7 +255,7 @@ function Browse() {
                     setQuery({ edit: playMode ? 1 : undefined });
                   }}
                 >
-                  {"<- Open Editor"}
+                  {playMode ? "<- Open Editor" : "Close Editor ->"}
                 </button>
               )}
             </div>

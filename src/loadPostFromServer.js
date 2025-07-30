@@ -42,144 +42,70 @@ export async function loadPostFromServer(postId, retrys = 0) {
   }
   useStore.setState({ loading: true });
   useStore.setState({ expandedPostId: idNumber });
-  await fetch("/api/getCreation/" + id)
-    .then((response) => {
-      if (useStore.getState().expandedPostId !== idNumber) {
-        return "cancel";
-      }
-      if (response.status == 200) {
-        return response.text();
-      } else {
-        console.error("I couldnt' find that data: " + id);
-        throw "getCreation err";
-      }
-    })
-    .then((raw) => {
-      if (raw === "cancel" || useStore.getState().expandedPostId !== idNumber) {
-        return "cancel";
-      }
-      let data = JSON.parse(raw);
-      console.log("loaded some code from " + id);
-      let { code, metadata, ...post } = data;
+  // Skip database loading - just use default values
+  console.log("Skipping database load for id:", id);
+  
+  const worldScale = 1 / 2;
+  const worldWidth = Math.round(worldScale * width);
+  const worldHeight = Math.round(worldScale * width);
 
-      let { xmls } = JSON.parse(code);
-      let {
-        paused,
-        disabled,
-        size,
-        selectedElement,
-        colors,
-        color2s,
-        elements,
-        worldScale = 1 / 2,
-      } = JSON.parse(metadata);
+  // Store world dimensions in two places for performance reasons
+  useStore.getState().setWorldSize([worldWidth, worldHeight]);
+  globalState.worldWidth = worldWidth;
+  globalState.worldHeight = worldHeight;
 
-      if (!worldScaleMap.includes(worldScale)) {
-        worldScale = 1 / 2;
-      }
+  useStore.getState().setWorldScale(worldScale);
+  useStore.setState({
+    initialWorldSize: worldWidth,
+    initialWorldScale: worldScale,
+  });
 
-      if (id < 1436) {
-        worldScale = 1 / 2;
-      }
+  useStore.setState({ paused: true });
+  useStore.setState({ initialPaused: false });
 
-      const worldWidth = Math.round(worldScale * width);
-      const worldHeight = Math.round(worldScale * width);
+  useStore.getState().setXmls(starterXMLs);
 
-      // Store world dimensions in two places for performance reasons
-      useStore.getState().setWorldSize([worldWidth, worldHeight]);
-      globalState.worldWidth = worldWidth;
-      globalState.worldHeight = worldHeight;
+  const disabled = [];
+  for (let i = 0; i < 4; i++) {
+    disabled[i] = false;
+  }
+  for (let i = 4; i < MAX_ELEMENTS; i++) {
+    disabled[i] = true;
+  }
 
-      useStore.getState().setWorldScale(worldScale);
-      useStore.setState({
-        initialWorldSize: worldWidth,
-        initialWorldScale: worldScale,
-      });
+  useStore.setState({
+    initialSelected: 0,
+    disabled,
+    post: null,
+    size: 3,
+  });
 
-      useStore.setState({ paused: true });
-      useStore.setState({ initialPaused: paused });
-
-      useStore.getState().setXmls(xmls);
-      // useStore.getState().setSelected(selectedElement);
-      // useStore.setState({ initialSelected: selectedElement });
-
-      useStore.setState({
-        initialSelected: selectedElement,
-        disabled,
-        //paused,
-        post,
-        size: size ?? 3,
-      });
-
-      globalState.wraparoundEnabled = post.id > 938;
-    })
-    .catch((err) => {
-      console.error(err);
-      if (useStore.getState().expandedPostId !== idNumber) {
-        return "cancel";
-      }
-      if (retrys < 5) {
-        console.warn("retrying");
-        return loadPostFromServer(postId, retrys + 1);
-      } else {
-        Sentry.captureException(err);
-      }
-    });
+  globalState.wraparoundEnabled = true;
 
   if (useStore.getState().expandedPostId !== idNumber) {
     return "cancel";
   }
 
   useStore.setState({ postId: id });
-  await fetch(`${imageURLBase}${id}.data.png`)
-    .then((res) => res.blob())
-    .then(async (blob) => {
-      if (useStore.getState().expandedPostId !== idNumber) {
-        return "cancel";
-      }
-      let ab = await blob.arrayBuffer();
-      let { data } = decode(ab);
-      
-      const nowTime = Date.now();
-      const elapsedTime = nowTime - startTime;
-      if (elapsedTime < 500) {
-        await new Promise((r) => setTimeout(r, 500 - elapsedTime));
-      }
+  
+  // Initialize with empty sand data
+  for (let i = 0; i < width * height * 4; i += 4) {
+    sands[i] = 0;
+    sands[i + 1] = randomData(i / 4 % width, Math.floor(i / 4 / width));
+    sands[i + 2] = 0;
+    sands[i + 3] = 0;
+  }
 
-      useStore.setState({ initialSandsData: data });
+  const nowTime = Date.now();
+  const elapsedTime = nowTime - startTime;
+  if (elapsedTime < 500) {
+    await new Promise((r) => setTimeout(r, 500 - elapsedTime));
+  }
 
-      if (id >= 1436) {
-        for (var i = 0; i < width * height * 4; i++) {
-          sands[i] = data[i];
-        }
-      } else {
-        // Backwards compatibility with posts from before the world was resizeable
-        const edgePosition = 150;
-        let dataIndex = 0;
-        let sandsIndex = 0;
-        for (let x = 0; x < width; x++) {
-          for (let y = 0; y < height; y++) {
-            if (x < edgePosition && y < edgePosition) {
-              sands[sandsIndex] = data[dataIndex];
-              sands[sandsIndex + 1] = data[dataIndex + 1];
-              sands[sandsIndex + 2] = data[dataIndex + 2];
-              sands[sandsIndex + 3] = data[dataIndex + 3];
-              sandsIndex += 4;
-              dataIndex += 4;
-            } else {
-              sands[sandsIndex] = 0;
-              sands[sandsIndex + 1] = randomData(x, y);
-              sands[sandsIndex + 2] = 0;
-              sands[sandsIndex + 3] = 0;
-              sandsIndex += 4;
-            }
-          }
-        }
-      }
+  useStore.setState({ initialSandsData: null });
 
-      await loadIntoEditor(idNumber);
-      useStore.setState({ loading: false });
-    });
+  await loadIntoEditor(idNumber);
+  useStore.setState({ loading: false });
 }
 
 const loadIntoEditor = async (idNumber = null) => {

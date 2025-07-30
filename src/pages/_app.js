@@ -3,7 +3,7 @@ import Head from "next/head";
 import App from "next/app";
 import Script from "next/script";
 import { useRouter } from "next/router";
-import { SessionProvider } from "next-auth/react";
+
 import { QueryClient, QueryClientProvider } from "react-query";
 import { NextQueryParamProvider } from "next-query-params";
 
@@ -51,13 +51,11 @@ function MyApp({ Component, pageProps }) {
         <meta property="og:image" content={ogImageSrc} />
       </Head>
       <SafeHydrate>
-        <SessionProvider session={pageProps.session} refetchInterval={0}>
-          <NextQueryParamProvider>
-            <QueryClientProvider client={queryClient}>
-              <Component {...pageProps} />
-            </QueryClientProvider>
-          </NextQueryParamProvider>
-        </SessionProvider>
+        <NextQueryParamProvider>
+          <QueryClientProvider client={queryClient}>
+            <Component {...pageProps} />
+          </QueryClientProvider>
+        </NextQueryParamProvider>
 
         <Script src="https://scripts.simpleanalyticscdn.com/latest.js" />
         <noscript>

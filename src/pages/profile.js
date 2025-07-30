@@ -1,6 +1,6 @@
 /* eslint-disable @next/next/no-img-element */
 import React, { useCallback, useState } from "react";
-import { useSession, signIn, signOut } from "next-auth/react";
+// Authentication disabled in local mode
 import { useRouter } from "next/router.js";
 import { useQuery } from "react-query";
 import {
@@ -18,18 +18,13 @@ export default function Profile() {
   });
   const router = useRouter();
   const userId = router.query.userid;
-  const { data: session, status } = useSession();
+  const session = null;
+  const status = "unauthenticated"; // No authentication in local mode
   let [username, setUsername] = useState(session?.user?.name);
 
-  const { isLoading, data: user } = useQuery([`user${userId}`], async () => {
-    const result = await axios("/api/user", {
-      params: {
-        id: userId,
-      },
-    });
-    setUsername(result.data.name);
-    return result.data;
-  });
+  // Mock data for local mode - no database
+  const isLoading = false;
+  const user = null;
 
   if (status === "loading" || isLoading) {
     return (
@@ -114,8 +109,8 @@ export default function Profile() {
           </span>
           {session && session.userId === userId && (
             <div style={{ marginTop: "10px" }}>
-              <button onClick={signOut} style={{ marginBottom: 6 }}>
-                Sign Out
+              <button onClick={() => alert("Authentication disabled in local mode")} style={{ marginBottom: 6 }}>
+                Sign Out (Disabled)
               </button>
             </div>
           )}
