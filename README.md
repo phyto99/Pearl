@@ -1,6 +1,6 @@
 # Pearl
 
-Testing to create a multiplayer game with sandspiel
+Testing to create a multiplayer game (first mapmaker for said game) with sandspiel
 
 1% complete
 
