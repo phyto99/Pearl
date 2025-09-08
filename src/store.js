@@ -45,11 +45,11 @@ let useStore = create((set, get) => ({
   setTaggedMode: (e) => set(() => ({ taggedMode: e })),
 
   // EDITOR + PLAYGROUND
-  xmls: [],
-  disabled: [],
-  elements: ["Air", "Wall", "Water", "Sand"], // these elements are listed here so that the toolbox displays properly
-  colors: [],
-  color2s: [],
+  xmls: starterXMLs.slice(0, 4), // Initialize with first 4 starter elements
+  disabled: [false, false, false, false, ...Array(MAX_ELEMENTS - 4).fill(true)],
+  elements: starterXMLs.slice(0, 4).map((x) => deriveName(x)), // Derive names from XML
+  colors: starterXMLs.slice(0, 4).map((x) => deriveColor(x)), // Derive colors from XML
+  color2s: starterXMLs.slice(0, 4).map((x) => deriveColor(x, 2)), // Derive secondary colors from XML
   deleteSelectedElement: () =>
     set(() => {
       let { disabled, selectedElement, elements } = get();

@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import useAnimationFrame from "use-animation-frame";
 import useSound from "use-sound";
 import { startWebGL } from "./Render";
-import useStore, { globalState } from "../store";
+import useStore, { globalState, MAX_ELEMENTS } from "../store";
 import { fps } from "./fps";
 import { WrappedElementButtons } from "../simulation-controls/ElementButtons";
 import ExtraUI from "../simulation-controls/ExtraUI";
@@ -19,7 +19,8 @@ import { pointsAlongLine } from "../utils/utils";
 import LoadingCurtain from "../pages/loadingCurtain.js";
 let dpi = 4;
 
-globalState.updaters = useStore.getState().elements.map(() => {
+// Initialize updaters array - will be populated by generateCode
+globalState.updaters = Array(MAX_ELEMENTS).fill(null).map(() => {
   return (() => {}).bind(globalState);
 });
 let holdInterval = null;
