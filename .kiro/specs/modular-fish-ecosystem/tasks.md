@@ -1,39 +1,55 @@
 # Implementation Plan
 
-- [ ] 1. Integrate specialized elements and ship mechanics
-
-
+- [-] 1. Integrate specialized elements and ship mechanics
 
   - Add specialized tile elements and ship system to element framework
   - Implement keyboard-controlled ship movement with blue trail system
   - Create team management with one ship per team restriction
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8, 5.9, 5.10, 8.1, 8.2, 8.3, 8.4, 8.5_
+
+
+
+
 - [ ] 1.2 Add ship and trail elements
 
   - Create ship element in element system with keyboard control capability
   - Implement blue trail element as wall type in element system
   - Configure ship element for team assignment and real-time movement
+
   - Set up trail element for automatic blue trail creation behind ship movement
+
   - Enforce one player ship per team restriction (unlike other mapmaking elements)
+
+
   - _Requirements: 5.1, 5.2, 5.3, 5.4, 8.1, 8.4_
+
+
 
 - [ ] 1.3 Implement keyboard-controlled ship movement
 
-
   - Add arrow key event listeners for ship control (up, down, left, right)
   - Implement diagonal movement when two arrow keys are pressed simultaneously
+
+
   - Configure ships to operate outside cellular automata tick system for responsive control
   - Make currently non-operational ships fully operational with player controls
   - _Requirements: 5.1, 5.2, 5.3, 5.8_
 
+
 - [ ] 1.4 Create blue trail system
+
+
 
 
   - Implement blue trail creation that follows behind ship movement
   - Add trail bending logic when ship changes direction
+
+
   - Configure trail elements to act like walls and interfere with cellular automata simulation
   - Ensure trail elements have proper interaction with cell system without using same tick timing
   - _Requirements: 5.4, 5.5, 5.6, 5.7_
+
+
 
 - [ ] 1.5 Implement fish capture and scoring
 
