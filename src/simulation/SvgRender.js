@@ -1,121 +1,169 @@
-import React, { useRef, useEffect, useState } from 'react';
-import { width, height, sands } from './SandApi';
-import useStore from '../store';
+import { useStore } from "../store";
 
-const SVG_ELEMENTS = ['city', 'harbor', 'homeharbor', 'homeisland', 'island'];
+class SvgRenderer {
+  constructor(canvas) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d');
+    this.svgImages = new Map();
+    this.loadingSvgs = false;
+    this.svgsLoaded = false;
+    
+    this.initializeSvgs();
+  }
 
-const SvgRender = ({ worldScale }) => {
-  const canvasRef = useRef(null);
-  const svgCache = useRef({});
-  const imageCache = useRef({});
-  const [loaded, setLoaded] = useState(false);
-  
-  // Load SVG files and cache them as images
-  useEffect(() => {
-    const loadSvgs = async () => {
-      const promises = SVG_ELEMENTS.map(async (element) => {
-        try {
-          const response = await fetch(`/svgs/${element}.svg`);
-          const svgText = await response.text();
-          svgCache.current[element] = svgText;
-          
-          // Pre-create image for better performance
-          const img = new Image();
-          const svgBlob = new Blob([svgText], { type: 'image/svg+xml' });
-          const url = URL.createObjectURL(svgBlob);
-          
-          return new Promise((resolve) => {
+  async initializeSvgs() {
+    if (this.loadingSvgs) return;
+    this.loadingSvgs = true;
+
+    const svgFiles = {
+      4: 'city',
+      5: 'harbor', 
+      6: 'homeharbor',
+      7: 'homeisland',
+      8: 'island'
+    };
+
+    const loadPromises = Object.entries(svgFiles).map(([elementId, svgName]) => {
+      return new Promise((resolve) => {
+        fetch(`/svgs/${svgName}.svg`)
+          .then(response => response.text())
+          .then(svgText => {
+            const img = new Image();
+            const svgBlob = new Blob([svgText], { type: 'image/svg+xml' });
+            const url = URL.createObjectURL(svgBlob);
+            
             img.onload = () => {
-              imageCache.current[element] = img;
-              console.log(`Loaded SVG: ${element}`, img.width, img.height);
+              this.svgImages.set(parseInt(elementId), img);
               URL.revokeObjectURL(url);
               resolve();
             };
+            
             img.onerror = () => {
-              console.error(`Failed to load image for ${element}`);
+              console.warn(`Failed to load SVG for element ${elementId}`);
               resolve();
             };
+            
             img.src = url;
+          })
+          .catch(() => {
+            console.warn(`Failed to fetch SVG for element ${elementId}`);
+            resolve();
           });
-        } catch (error) {
-          console.warn(`Failed to load SVG for ${element}:`, error);
-        }
       });
-      
-      await Promise.all(promises);
-      setLoaded(true);
-    };
-    loadSvgs();
-  }, []);
+    });
 
-  useEffect(() => {
-    if (!loaded) return;
-    
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    await Promise.all(loadPromises);
+    this.svgsLoaded = true;
+  }
 
-    const ctx = canvas.getContext('2d');
-    const pixelSize = Math.max(1, worldScale); // Use worldScale directly
+  render(sands, worldWidth, worldHeight, scale = 1) {
+    const { colors, color2s } = useStore.getState();
     
     // Clear canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     
-    // Get harbor hole diameter for circle size (4 pixels radius from SVG)
-    const circleRadius = 4;
-    
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const index = (y * width + x) * 4;
-        const elementId = sands[index];
-        
-        if (elementId === 0) continue; // Skip empty cells
-        
-        const pixelX = x * pixelSize;
-        const pixelY = y * pixelSize;
-        
-        if (elementId < 5 && SVG_ELEMENTS[elementId]) {
-          // Render SVG elements (0-4 map to indices 0-4)
-          const svgElement = SVG_ELEMENTS[elementId];
-          const img = imageCache.current[svgElement];
-          
-          if (img) {
-            ctx.drawImage(img, pixelX, pixelY, pixelSize, pixelSize);
+    // Calculate cell size based on canvas size and world dimensions
+    const cellWidth = this.canvas.width / worldWidth;
+    const cellHeight = this.canvas.height / worldHeight;
+    const cellSize = Math.min(cellWidth, cellHeight);
 
+    for (let y = 0; y < worldHeight; y++) {
+      for (let x = 0; x < worldWidth; x++) {
+        const index = (y * 300 + x) * 4; // Use fixed width of 300 from SandApi
+        const elementType = sands[index];
+        
+        if (elementType === 0) continue; // Skip empty cells
+        
+        const pixelX = x * cellSize;
+        const pixelY = y * cellSize;
+        
+        // Handle specialized SVG elements (4-8)
+        if (elementType >= 4 && elementType <= 8) {
+          if (elementType === 8) {
+            // Island element - render as pure black rectangle (wall behavior)
+            this.ctx.fillStyle = '#000000';
+            this.ctx.fillRect(pixelX, pixelY, cellSize, cellSize);
+          } else if (this.svgImages.has(elementType)) {
+            // Render SVG elements
+            const img = this.svgImages.get(elementType);
+            this.ctx.drawImage(img, pixelX, pixelY, cellSize, cellSize);
+          } else {
+            // Fallback to colored rectangle
+            this.renderColoredRect(pixelX, pixelY, cellSize, elementType, colors, color2s, sands, index);
           }
+        } else if (elementType === 9) {
+          // Ship element - render as blue diamond
+          this.renderShip(pixelX, pixelY, cellSize);
+        } else if (elementType === 10) {
+          // Trail element - render as white rectangle (wall behavior)
+          this.ctx.fillStyle = '#FFFFFF';
+          this.ctx.fillRect(pixelX, pixelY, cellSize, cellSize);
         } else {
-          // Render other elements as circles
-          const colors = useStore.getState().colors;
-          const color = colors[elementId] || [0.5, 0.5, 0.5];
-          const [h, s, l] = color;
-          
-          ctx.fillStyle = `hsl(${h * 360}, ${s * 100}%, ${l * 100}%)`;
-          ctx.beginPath();
-          ctx.arc(
-            pixelX + pixelSize / 2, 
-            pixelY + pixelSize / 2, 
-            Math.min(circleRadius, pixelSize / 2), 
-            0, 
-            2 * Math.PI
-          );
-          ctx.fill();
+          // Regular elements - render with color variation
+          this.renderColoredRect(pixelX, pixelY, cellSize, elementType, colors, color2s, sands, index);
         }
       }
     }
-  }, [loaded, worldScale]);
+  }
 
-  return (
-    <canvas
-      ref={canvasRef}
-      width={width * worldScale}
-      height={height * worldScale}
-      style={{
-        imageRendering: 'pixelated',
-        width: '100%',
-        height: '100%',
-        display: 'block'
-      }}
-    />
-  );
-};
+  renderColoredRect(x, y, size, elementType, colors, color2s, sands, index) {
+    const color = colors[elementType] || [0.5, 0.5, 0.5];
+    const color2 = color2s[elementType] || [0.5, 0.5, 0.5];
+    
+    // Add color variation based on random data
+    const ra = (sands[index + 1] || 50) / 100;
+    const mixedColor = [
+      color[0] * (1 - ra) + color2[0] * ra,
+      color[1] * (1 - ra) + color2[1] * ra,
+      color[2] * (1 - ra) + color2[2] * ra
+    ];
+    
+    const [h, s, l] = mixedColor;
+    this.ctx.fillStyle = `hsl(${h * 360}, ${s * 100}%, ${l * 100}%)`;
+    this.ctx.fillRect(x, y, size, size);
+  }
 
-export default SvgRender;
+  renderShip(x, y, size) {
+    // Render ship as blue diamond
+    this.ctx.fillStyle = '#0066FF';
+    this.ctx.beginPath();
+    
+    const centerX = x + size / 2;
+    const centerY = y + size / 2;
+    const halfSize = size / 2;
+    
+    // Draw diamond shape
+    this.ctx.moveTo(centerX, centerY - halfSize); // Top
+    this.ctx.lineTo(centerX + halfSize, centerY); // Right
+    this.ctx.lineTo(centerX, centerY + halfSize); // Bottom
+    this.ctx.lineTo(centerX - halfSize, centerY); // Left
+    this.ctx.closePath();
+    this.ctx.fill();
+  }
+
+  renderCircle(x, y, diameter, color) {
+    const centerX = x + diameter / 2;
+    const centerY = y + diameter / 2;
+    const radius = diameter / 2;
+    
+    this.ctx.beginPath();
+    this.ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+    this.ctx.fillStyle = color;
+    this.ctx.fill();
+  }
+}
+
+// Create a function that mimics the WebGL render interface
+export function startSvgGL({ canvas, width, height, sands }) {
+  const renderer = new SvgRenderer(canvas);
+  
+  return {
+    render: () => {
+      const { worldWidth, worldHeight, worldScale } = useStore.getState();
+      renderer.render(sands, worldWidth, worldHeight, worldScale);
+    },
+    renderer
+  };
+}
+
+export default SvgRenderer;

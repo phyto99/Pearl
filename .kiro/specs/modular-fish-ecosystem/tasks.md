@@ -1,19 +1,24 @@
 # Implementation Plan
 
-- [ ] 1. Integrate specialized elements and ship mechanics
+- [-] 1. Integrate specialized elements and ship mechanics
+
+
+
   - Add the 5 specialized tile elements (city, harbor, homeharbor, homeisland, island) to element system
   - Add player ship element as blue diamond SVG
   - Implement trail system as white wall elements
   - Configure all elements to work with SVG rendering system
   - _Requirements: 2.1, 2.2, 2.3, 2.5, 5.1, 5.2, 5.3_
 
-- [ ] 1.1 Add specialized tile elements to element system
+- [-] 1.1 Add specialized tile elements to element system
+
   - Extend element system to support SVG-based tiles
   - Add island, harbor, city, homeharbor, homeisland elements
   - Configure island element with pure black color and wall behavior
   - _Requirements: 2.1, 2.2, 2.3, 2.5_
 
-- [ ] 1.2 Add ship and trail elements
+- [-] 1.2 Add ship and trail elements
+
   - Create ship element as blue diamond SVG in element system
   - Implement trail element as white wall type in element system
   - Configure ship element for team assignment and movement
@@ -39,7 +44,8 @@
   - Add tests for ship and trail element creation
   - _Requirements: 2.2, 2.3, 2.6, 5.1, 5.2_
 
-- [ ] 2. Set up SVG rendering foundation
+- [-] 2. Set up SVG rendering foundation
+
   - Create SvgTileRenderer class to replace pixel-based rendering with efficient SVG system
   - Implement SVG caching mechanism for repeated elements
   - Add canvas-based SVG rendering for performance optimization

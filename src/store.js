@@ -26,7 +26,7 @@ let useStore = create((set, get) => ({
   paused: false,
   setPaused: (e) => set(() => ({ paused: e })),
 
-  size: 3,
+  size: 1,
   setSize: (e) => set(() => ({ size: e })),
   worldScale: 1 / 4,
   setWorldScale: (e) => set(() => ({ worldScale: e })),
@@ -45,11 +45,11 @@ let useStore = create((set, get) => ({
   setTaggedMode: (e) => set(() => ({ taggedMode: e })),
 
   // EDITOR + PLAYGROUND
-  xmls: starterXMLs.slice(0, 4), // Initialize with first 4 starter elements
-  disabled: [false, false, false, false, ...Array(MAX_ELEMENTS - 4).fill(true)],
-  elements: starterXMLs.slice(0, 4).map((x) => deriveName(x)), // Derive names from XML
-  colors: starterXMLs.slice(0, 4).map((x) => deriveColor(x)), // Derive colors from XML
-  color2s: starterXMLs.slice(0, 4).map((x) => deriveColor(x, 2)), // Derive secondary colors from XML
+  xmls: starterXMLs.slice(0, 11), // Initialize with first 11 starter elements (including ship and trail)
+  disabled: [false, false, false, false, false, false, false, false, false, false, false, ...Array(MAX_ELEMENTS - 11).fill(true)],
+  elements: starterXMLs.slice(0, 11).map((x) => deriveName(x)), // Derive names from XML
+  colors: starterXMLs.slice(0, 11).map((x) => deriveColor(x)), // Derive colors from XML
+  color2s: starterXMLs.slice(0, 11).map((x) => deriveColor(x, 2)), // Derive secondary colors from XML
   deleteSelectedElement: () =>
     set(() => {
       let { disabled, selectedElement, elements } = get();

@@ -2,7 +2,18 @@ import React, { useRef, useEffect, useState } from 'react';
 import { width, height, sands } from './SandApi';
 import useStore from '../store';
 
-const SVG_ELEMENTS = ['city', 'harbor', 'homeharbor', 'homeisland', 'island'];
+// Map element indices to SVG files - these correspond to our specialized elements
+const SVG_ELEMENTS = {
+  4: 'city',        // City element
+  5: 'harbor',      // Harbor element  
+  6: 'homeharbor',  // Home Harbor element
+  7: 'homeisland',  // Home Island element
+  8: 'island'       // Island element
+};
+
+// Special elements that need custom rendering
+const SHIP_ELEMENT = 9;  // Ship element
+const TRAIL_ELEMENT = 10; // Trail element
 
 const HybridRender = ({ worldScale }) => {
   const canvasRef = useRef(null);
@@ -13,11 +24,11 @@ const HybridRender = ({ worldScale }) => {
   // Load SVG files and cache them as images
   useEffect(() => {
     const loadSvgs = async () => {
-      const promises = SVG_ELEMENTS.map(async (element) => {
+      const promises = Object.entries(SVG_ELEMENTS).map(async ([elementId, svgName]) => {
         try {
-          const response = await fetch(`/svgs/${element}.svg`);
+          const response = await fetch(`/svgs/${svgName}.svg`);
           const svgText = await response.text();
-          svgCache.current[element] = svgText;
+          svgCache.current[elementId] = svgText;
           
           // Pre-create image for better performance
           const img = new Image();
@@ -26,18 +37,18 @@ const HybridRender = ({ worldScale }) => {
           
           return new Promise((resolve) => {
             img.onload = () => {
-              imageCache.current[element] = img;
+              imageCache.current[elementId] = img;
               URL.revokeObjectURL(url);
               resolve();
             };
             img.onerror = () => {
-              console.error(`Failed to load image for ${element}`);
+              console.error(`Failed to load image for ${svgName} (element ${elementId})`);
               resolve();
             };
             img.src = url;
           });
         } catch (error) {
-          console.warn(`Failed to load SVG for ${element}:`, error);
+          console.warn(`Failed to load SVG for ${svgName} (element ${elementId}):`, error);
         }
       });
       
@@ -72,13 +83,25 @@ const HybridRender = ({ worldScale }) => {
         const pixelX = x * pixelSize;
         const pixelY = y * pixelSize;
         
-        if (elementId >= 4 && elementId <= 8 && SVG_ELEMENTS[elementId - 4]) {
-          // Render SVG elements (4-8 map to indices 0-4 in SVG_ELEMENTS)
-          const svgElement = SVG_ELEMENTS[elementId - 4];
-          const img = imageCache.current[svgElement];
+        if (SVG_ELEMENTS[elementId]) {
+          // Render SVG elements for specialized tiles
+          const img = imageCache.current[elementId];
           
           if (img) {
-            ctx.drawImage(img, pixelX, pixelY, pixelSize, pixelSize);
+            // Special handling for island element - render as pure black
+            if (elementId === 8) { // Island element
+              ctx.fillStyle = '#000000';
+              ctx.fillRect(pixelX, pixelY, pixelSize, pixelSize);
+            } else {
+              ctx.drawImage(img, pixelX, pixelY, pixelSize, pixelSize);
+            }
+          } else {
+            // Fallback to colored rectangle if SVG not loaded
+            const colors = useStore.getState().colors;
+            const color = colors[elementId] || [0.5, 0.5, 0.5];
+            const [h, s, l] = color;
+            ctx.fillStyle = `hsl(${h * 360}, ${s * 100}%, ${l * 100}%)`;
+            ctx.fillRect(pixelX, pixelY, pixelSize, pixelSize);
           }
         } else {
           // Render other elements as circles with color variability

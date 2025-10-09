@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import useAnimationFrame from "use-animation-frame";
 import useSound from "use-sound";
 import { startWebGL } from "./Render";
+import { startSvgGL } from "./SvgRender";
 import useStore, { globalState, MAX_ELEMENTS } from "../store";
 import { fps } from "./fps";
 import { WrappedElementButtons } from "../simulation-controls/ElementButtons";
@@ -70,7 +71,8 @@ const Sand = () => {
   const drawer = React.useRef();
   const [isDrawing, setIsDrawing] = useState(false);
   React.useEffect(() => {
-    drawer.current = startWebGL({
+    // Use SVG rendering for specialized elements
+    drawer.current = startSvgGL({
       canvas: canvas.current,
       width,
       height,
