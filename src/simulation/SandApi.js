@@ -265,7 +265,9 @@ export function initSand([x, y], v, [bx, by]) {
     return;
   }
 
-  setSand(x, y, v, randomData(bx ?? x, by ?? y), 0, 0);
+  // Ships (element 9) should start with RA = 0 for immediate movement
+  const ra = v === 9 ? 0 : randomData(bx ?? x, by ?? y);
+  setSand(x, y, v, ra, 0, 0);
 }
 export function setSand(x, y, v, ra, rb, rc) {
   [x, y] = getWrappedPosition(x, y);
@@ -692,6 +694,7 @@ function callAfterFrame(func) {
 globalState.keys = keys;
 globalState.getKeyBoardVector = getKeyBoardVector;
 globalState.getCursorDistance = getCursorDistance;
+globalState.handleShipMovement = handleShipMovement;
 globalState.getSandRelative = getSandRelative;
 globalState.setSandRelative = setSandRelative;
 globalState.swapSandRelative = swapSandRelative;
@@ -773,9 +776,108 @@ export const fireEvent = (offset) => {
   behaveFunction();
 };
 
+// Ship movement state
+let previousKeys = {
+  ArrowUp: false,
+  ArrowDown: false,
+  ArrowLeft: false,
+  ArrowRight: false
+};
+let shipCooldowns = new Map(); // Track cooldowns per ship position
+
+// Ship movement logic - runs every frame (not just ticks)
+function handleShipMovement() {
+  const { worldWidth, worldHeight } = globalState;
+  
+  // Check for new key presses vs held keys
+  let dx = 0, dy = 0;
+  let isNewKeyPress = false;
+  
+  if (keys["ArrowRight"] && !previousKeys.ArrowRight) { dx = 1; isNewKeyPress = true; }
+  if (keys["ArrowLeft"] && !previousKeys.ArrowLeft) { dx = -1; isNewKeyPress = true; }
+  if (keys["ArrowUp"] && !previousKeys.ArrowUp) { dy = -1; isNewKeyPress = true; }
+  if (keys["ArrowDown"] && !previousKeys.ArrowDown) { dy = 1; isNewKeyPress = true; }
+  
+  // For held keys, use current state
+  if (!isNewKeyPress) {
+    if (keys["ArrowRight"]) dx = 1;
+    if (keys["ArrowLeft"]) dx = -1;
+    if (keys["ArrowUp"]) dy = -1;
+    if (keys["ArrowDown"]) dy = 1;
+  }
+  
+  // Update previous key states
+  previousKeys.ArrowUp = keys["ArrowUp"];
+  previousKeys.ArrowDown = keys["ArrowDown"];
+  previousKeys.ArrowLeft = keys["ArrowLeft"];
+  previousKeys.ArrowRight = keys["ArrowRight"];
+  
+  if (dx === 0 && dy === 0) return;
+  
+  // Find all ships
+  const shipPositions = [];
+  for (let x = 0; x < worldWidth; x++) {
+    for (let y = 0; y < worldHeight; y++) {
+      const index = getIndex(x, y);
+      if (sands[index] === 9) { // Ship element
+        const shipKey = `${x},${y}`;
+        const cooldown = shipCooldowns.get(shipKey) || 0;
+        
+        // New key press = instant movement, held key = respect cooldown
+        if (isNewKeyPress || cooldown <= 0) {
+          shipPositions.push({ x, y, index, shipKey });
+        }
+      }
+    }
+  }
+  
+  // Move ships
+  for (const ship of shipPositions) {
+    const newX = ship.x + dx;
+    const newY = ship.y + dy;
+    
+    if (newX >= 0 && newX < worldWidth && newY >= 0 && newY < worldHeight) {
+      const newIndex = getIndex(newX, newY);
+      
+      // Ships can move through air (0) or trails (10)
+      if (sands[newIndex] === 0 || sands[newIndex] === 10) {
+        // Move ship
+        sands[newIndex] = 9;
+        sands[newIndex + 1] = sands[ship.index + 1];
+        sands[newIndex + 2] = sands[ship.index + 2];
+        sands[newIndex + 3] = sands[ship.index + 3];
+        
+        // Leave trail
+        sands[ship.index] = 10;
+        sands[ship.index + 1] = randomData(ship.x, ship.y);
+        sands[ship.index + 2] = 0;
+        sands[ship.index + 3] = 0;
+        
+        // Set cooldown: instant for new press, cellular speed for held
+        const newShipKey = `${newX},${newY}`;
+        shipCooldowns.delete(ship.shipKey);
+        shipCooldowns.set(newShipKey, isNewKeyPress ? 0 : 1);
+      }
+    }
+  }
+}
+
+// Update ship cooldowns every tick
+function updateShipCooldowns() {
+  for (const [key, cooldown] of shipCooldowns.entries()) {
+    if (cooldown > 0) {
+      shipCooldowns.set(key, cooldown - 1);
+    }
+  }
+}
+
 export const tick = (drawer) => {
   globalState.tNoise += -0.1;
   globalState.t += 1;
+  
+  // Update ship cooldowns with cellular automata
+  updateShipCooldowns();
+  
   const scheme = UPDATE_SCHEMES[globalState.updateScheme || "RANDOM_CYCLIC"];
   if (typeof scheme === "function") scheme(scheme, drawer);
   else scheme.tick(scheme, drawer);

@@ -85,18 +85,39 @@ const Sand = () => {
     globalState.taggedMode = taggedMode;
   }, [selectedElement, updateScheme, taggedMode]);
 
+  const [tickAccumulator, setTickAccumulator] = useState(0);
+  
   useAnimationFrame((e) => {
     if (useStore.getState().paused) {
       drawer?.current();
       return;
     }
-    const t0 = performance.now();
-    tick(drawer);
+    
+    // Handle ship movement every frame (for instant key press response)
+    if (typeof globalState.handleShipMovement === 'function') {
+      globalState.handleShipMovement();
+    }
+    
+    const tickSpeed = useStore.getState().tickSpeed || 1;
+    const newAccumulator = tickAccumulator + tickSpeed;
+    
+    // Run tick(s) when accumulator reaches 1 or more
+    if (newAccumulator >= 1) {
+      const ticksToRun = Math.floor(newAccumulator);
+      for (let i = 0; i < ticksToRun; i++) {
+        const t0 = performance.now();
+        tick(drawer);
+        const t1 = performance.now();
+        let d = t1 - t0;
+        fps.render(d);
+      }
+      setTickAccumulator(newAccumulator - ticksToRun);
+    } else {
+      setTickAccumulator(newAccumulator);
+    }
+    
     drawer?.current();
-    const t1 = performance.now();
-    let d = t1 - t0;
-    fps.render(d);
-  }, []);
+  }, [tickAccumulator]);
 
   const [drawerWidth, setWidth] = useState(starterWidth);
   const [isDragging, setIsDragging] = useState(false);

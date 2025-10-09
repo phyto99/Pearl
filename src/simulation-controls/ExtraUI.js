@@ -115,6 +115,25 @@ const ExtraUI = () => {
         </span>
         <SizeButtons />
       </div>
+      
+      <div className="controls-row">
+        <span>
+          <label style={{ fontSize: '12px', marginRight: '8px' }}>Tick Speed:</label>
+          <input
+            type="range"
+            min="0.1"
+            max="3"
+            step="0.1"
+            value={useStore.getState().tickSpeed || 1}
+            onChange={(e) => {
+              const speed = parseFloat(e.target.value);
+              useStore.setState({ tickSpeed: speed });
+            }}
+            style={{ width: '100px', marginRight: '8px' }}
+          />
+          <span style={{ fontSize: '12px', minWidth: '30px' }}>{(useStore.getState().tickSpeed || 1).toFixed(1)}x</span>
+        </span>
+      </div>
 
       <div className="controls-row">
         {!mobile && (

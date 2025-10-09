@@ -25,6 +25,7 @@ let useStore = create((set, get) => ({
   setSelected: (e) => set(() => ({ selectedElement: e })),
   paused: false,
   setPaused: (e) => set(() => ({ paused: e })),
+  tickSpeed: 1,
 
   size: 1.5,
   setSize: (e) => set(() => ({ size: e })),
