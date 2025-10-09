@@ -26,7 +26,7 @@ let useStore = create((set, get) => ({
   paused: false,
   setPaused: (e) => set(() => ({ paused: e })),
 
-  size: 1,
+  size: 1.5,
   setSize: (e) => set(() => ({ size: e })),
   worldScale: 1 / 4,
   setWorldScale: (e) => set(() => ({ worldScale: e })),
