@@ -76,6 +76,9 @@ const shipElement = {
     trailColor: 'white',
     captureRadius: 1,
     score: 0
+  },
+  restrictions: {
+    onePerTeam: true  // Unlike other mapmaking elements, only one ship per team
   }
 }
 ```
@@ -153,11 +156,28 @@ class ShipController {
 }
 ```
 
+**Team Ship Manager**
+```javascript
+class TeamShipManager {
+  constructor()
+  validateShipPlacement(team, position)
+  getTeamShip(teamId)
+  enforceOneShipPerTeam(teamId)
+  removeExistingTeamShip(teamId)
+}
+```
+
 **Trail System:**
 - Trail elements created automatically behind ship movement
 - Loop detection algorithm for trail preservation
 - Adjacent fish capture on simulation tick
 - Team scoring system integration
+
+**Ship Placement Restrictions:**
+- Unlike other mapmaking elements (harbor, city, fish), ships have a one-per-team restriction
+- When placing a ship for a team that already has one, the existing ship is removed
+- Team ship validation occurs during both mapmaking and testing phases
+- Ship restrictions are preserved in exported map configurations
 
 ## Data Models
 

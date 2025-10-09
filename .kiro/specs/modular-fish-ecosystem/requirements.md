@@ -101,3 +101,15 @@ This feature enhances the existing sandspiel simulation into a comprehensive map
 4. WHEN testing is complete THEN the mapmaker SHALL allow easy return to editing mode
 5. WHEN win conditions are needed THEN they SHALL be configurable within the mapmaker interface
 6. WHEN testing different scenarios THEN the mapmaker SHALL support rapid iteration and testing
+
+### Requirement 8: Team Management and Ship Restrictions
+
+**User Story:** As a mapmaker, I want to enforce team-based ship placement restrictions, so that gameplay balance is maintained with proper team mechanics.
+
+#### Acceptance Criteria
+
+1. WHEN placing ship elements THEN only one ship SHALL be allowed per team (unlike other mapmaking elements)
+2. WHEN a team already has a ship THEN the system SHALL prevent placement of additional ships for that team
+3. WHEN switching teams THEN each team SHALL maintain its own single ship restriction
+4. WHEN testing scenarios THEN ship restrictions SHALL be enforced during gameplay validation
+5. WHEN exporting maps THEN ship placement restrictions SHALL be preserved in the exported configuration
