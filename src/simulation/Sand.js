@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import useAnimationFrame from "use-animation-frame";
 import useSound from "use-sound";
 import { startWebGL } from "./Render";
@@ -19,6 +19,104 @@ import { sands, width, height, tick, initSand, pushUndo } from "./SandApi";
 import { pointsAlongLine } from "../utils/utils";
 import LoadingCurtain from "../pages/loadingCurtain.js";
 let dpi = 4;
+
+// Viewport wrapper - applies zoom/pan transform to canvas only
+// Controls: scroll wheel = zoom, right-click drag = pan, 0 = reset
+const CanvasViewport = React.forwardRef(({ children, onCanvasEvent }, ref) => {
+  const containerRef = useRef(null);
+  const cameraZoom = useStore((state) => state.cameraZoom);
+  const cameraX = useStore((state) => state.cameraX);
+  const cameraY = useStore((state) => state.cameraY);
+  const setCameraZoom = useStore((state) => state.setCameraZoom);
+  const setCameraPosition = useStore((state) => state.setCameraPosition);
+  
+  const [isPanning, setIsPanning] = useState(false);
+  const panStartRef = useRef({ x: 0, y: 0, camX: 0, camY: 0 });
+
+  // Scroll wheel = zoom (no modifier needed)
+  const handleWheel = useCallback((e) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? 0.9 : 1.1;
+    const newZoom = Math.max(0.25, Math.min(5, cameraZoom * delta));
+    setCameraZoom(newZoom);
+  }, [cameraZoom, setCameraZoom]);
+
+  // Right-click drag = pan
+  const handleMouseDown = useCallback((e) => {
+    if (e.button === 2) { // Right mouse button
+      e.preventDefault();
+      setIsPanning(true);
+      panStartRef.current = { x: e.clientX, y: e.clientY, camX: cameraX, camY: cameraY };
+    }
+  }, [cameraX, cameraY]);
+
+  const handleMouseMove = useCallback((e) => {
+    if (isPanning) {
+      const dx = e.clientX - panStartRef.current.x;
+      const dy = e.clientY - panStartRef.current.y;
+      setCameraPosition(panStartRef.current.camX + dx, panStartRef.current.camY + dy);
+    }
+  }, [isPanning, setCameraPosition]);
+
+  const handleMouseUp = useCallback((e) => {
+    if (e.button === 2) setIsPanning(false);
+  }, []);
+
+  // Prevent context menu on right-click
+  const handleContextMenu = useCallback((e) => {
+    e.preventDefault();
+  }, []);
+
+  // Reset camera with 0 key
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === '0' && !e.ctrlKey && !e.metaKey) {
+        useStore.getState().resetCamera();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (container) {
+      container.addEventListener('wheel', handleWheel, { passive: false });
+      container.addEventListener('contextmenu', handleContextMenu);
+      return () => {
+        container.removeEventListener('wheel', handleWheel);
+        container.removeEventListener('contextmenu', handleContextMenu);
+      };
+    }
+  }, [handleWheel, handleContextMenu]);
+
+  return (
+    <div
+      ref={containerRef}
+      style={{
+        overflow: 'hidden',
+        position: 'relative',
+        width: '100%',
+        aspectRatio: '1',
+      }}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={() => setIsPanning(false)}
+    >
+      <div
+        style={{
+          transform: `translate(${cameraX}px, ${cameraY}px) scale(${cameraZoom})`,
+          transformOrigin: 'center center',
+          width: '100%',
+          height: '100%',
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+});
 
 // Initialize updaters array - will be populated by generateCode
 globalState.updaters = Array(MAX_ELEMENTS).fill(null).map(() => {
@@ -160,11 +258,14 @@ const Sand = () => {
   let mouseMoveCanvas = useCallback(
     (e, force = false) => {
       let bounds = canvas.current.getBoundingClientRect();
-      const { worldWidth, worldHeight } = useStore.getState();
-      const cellWidth = (bounds.width - 6) / worldWidth;
-      const cellHeight = (bounds.height - 6) / worldHeight;
-      let eX = Math.floor((e.clientX - 3 - bounds.left) / cellWidth);
-      let eY = Math.floor((e.clientY - 3 - bounds.top) / cellHeight);
+      const { worldWidth, worldHeight, cameraZoom } = useStore.getState();
+      
+      // Adjust cell size for zoom
+      const cellWidth = (bounds.width - 6 * cameraZoom) / worldWidth;
+      const cellHeight = (bounds.height - 6 * cameraZoom) / worldHeight;
+      let eX = Math.floor((e.clientX - 3 * cameraZoom - bounds.left) / cellWidth);
+      let eY = Math.floor((e.clientY - 3 * cameraZoom - bounds.top) / cellHeight);
+      
       let { size, setPos } = useStore.getState();
       setPos([eX, eY]);
       if (!isDrawing && !force) {
@@ -241,78 +342,82 @@ const Sand = () => {
         selectedElement={selectedElement}
         setSelected={setSelected}
       />
-      <canvas
-        id="worldCanvas"
-        onMouseDown={(e) => {
-          let bounds = canvas.current.getBoundingClientRect();
-          const { worldWidth, worldHeight } = useStore.getState();
-          const cellWidth = (bounds.width - 6) / worldWidth;
-          const cellHeight = (bounds.height - 6) / worldHeight;
-          let eX = Math.floor((e.clientX - 3 - bounds.left) / cellWidth);
-          let eY = Math.floor((e.clientY - 3 - bounds.top) / cellHeight);
+      <CanvasViewport>
+        <canvas
+          id="worldCanvas"
+          onMouseDown={(e) => {
+            // Ignore middle mouse button (used for panning)
+            if (e.button === 1) return;
+            
+            let bounds = canvas.current.getBoundingClientRect();
+            const { worldWidth, worldHeight, cameraZoom } = useStore.getState();
+            const cellWidth = (bounds.width - 6 * cameraZoom) / worldWidth;
+            const cellHeight = (bounds.height - 6 * cameraZoom) / worldHeight;
+            let eX = Math.floor((e.clientX - 3 * cameraZoom - bounds.left) / cellWidth);
+            let eY = Math.floor((e.clientY - 3 * cameraZoom - bounds.top) / cellHeight);
 
-          prevPos = [eX, eY];
-          pushUndo();
-          setIsDrawing(true);
-          clearInterval(holdInterval);
-          holdInterval = setInterval(() => {
+            prevPos = [eX, eY];
+            pushUndo();
+            setIsDrawing(true);
+            clearInterval(holdInterval);
+            holdInterval = setInterval(() => {
+              mouseMoveCanvas(e, true);
+            }, 60);
             mouseMoveCanvas(e, true);
-          }, 60);
-          mouseMoveCanvas(e, true);
-        }}
-        onMouseOut={() => {
-          clearInterval(holdInterval);
-          // setIsDrawing(false);
-          let { setPos } = useStore.getState();
-          setPos([-1, -1]);
-        }}
-        onMouseMove={mouseMoveCanvas}
-        onTouchStart={(e) => {
-          let touches = Array.from(e.touches);
-          if (touches.length < 1) {
-            return;
-          }
-          let touch = touches[0];
+          }}
+          onMouseOut={() => {
+            clearInterval(holdInterval);
+            let { setPos } = useStore.getState();
+            setPos([-1, -1]);
+          }}
+          onMouseMove={mouseMoveCanvas}
+          onTouchStart={(e) => {
+            let touches = Array.from(e.touches);
+            if (touches.length < 1) {
+              return;
+            }
+            let touch = touches[0];
 
-          let bounds = canvas.current.getBoundingClientRect();
-          const { worldWidth, worldHeight } = useStore.getState();
-          const cellWidth = (bounds.width - 6) / worldWidth;
-          const cellHeight = (bounds.height - 6) / worldHeight;
-          let eX = Math.floor((e.clientX - 3 - bounds.left) / cellWidth);
-          let eY = Math.floor((e.clientY - 3 - bounds.top) / cellHeight);
-          pushUndo();
-          clearInterval(holdInterval);
-          e.clientX = touch.clientX;
-          e.clientY = touch.clientY;
-          holdInterval = setInterval(() => {
-            mouseMoveCanvas(e, true);
-          }, 60);
-          prevPos = [eX, eY];
-        }}
-        onTouchEnd={() => {
-          clearInterval(holdInterval);
-        }}
-        onTouchMove={(e) => {
-          let touches = Array.from(e.touches);
-          if (touches.length !== 1) {
-            return;
-          }
-          e.preventDefault();
+            let bounds = canvas.current.getBoundingClientRect();
+            const { worldWidth, worldHeight, cameraZoom } = useStore.getState();
+            const cellWidth = (bounds.width - 6 * cameraZoom) / worldWidth;
+            const cellHeight = (bounds.height - 6 * cameraZoom) / worldHeight;
+            let eX = Math.floor((touch.clientX - 3 * cameraZoom - bounds.left) / cellWidth);
+            let eY = Math.floor((touch.clientY - 3 * cameraZoom - bounds.top) / cellHeight);
+            pushUndo();
+            clearInterval(holdInterval);
+            e.clientX = touch.clientX;
+            e.clientY = touch.clientY;
+            holdInterval = setInterval(() => {
+              mouseMoveCanvas(e, true);
+            }, 60);
+            prevPos = [eX, eY];
+          }}
+          onTouchEnd={() => {
+            clearInterval(holdInterval);
+          }}
+          onTouchMove={(e) => {
+            let touches = Array.from(e.touches);
+            if (touches.length !== 1) {
+              return;
+            }
+            e.preventDefault();
 
-          let touch = touches[0];
-          e.clientX = touch.clientX;
-          e.clientY = touch.clientY;
-          setIsDrawing(true);
-          mouseMoveCanvas(e);
-          clearInterval(holdInterval);
-          holdInterval = setInterval(() => {
-            mouseMoveCanvas(e, true);
-          }, 60);
-        }}
-        ref={canvas}
-        height={height * dpi}
-        width={width * dpi}
-      />
+            let touch = touches[0];
+            e.clientX = touch.clientX;
+            e.clientY = touch.clientY;
+            setIsDrawing(true);
+            mouseMoveCanvas(e);
+            clearInterval(holdInterval);
+            holdInterval = setInterval(() => {
+              mouseMoveCanvas(e, true);
+            }, 60);
+          }}
+          ref={canvas}
+          height={height * dpi}
+          width={width * dpi}
+        />
+      </CanvasViewport>
 
       <ExtraUI
         playMode={playMode}

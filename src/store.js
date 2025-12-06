@@ -45,6 +45,14 @@ let useStore = create((set, get) => ({
   taggedMode: false,
   setTaggedMode: (e) => set(() => ({ taggedMode: e })),
 
+  // CAMERA / VIEWPORT
+  cameraZoom: 1,
+  cameraX: 0,
+  cameraY: 0,
+  setCameraZoom: (zoom) => set(() => ({ cameraZoom: Math.max(0.1, Math.min(10, zoom)) })),
+  setCameraPosition: (x, y) => set(() => ({ cameraX: x, cameraY: y })),
+  resetCamera: () => set(() => ({ cameraZoom: 1, cameraX: 0, cameraY: 0 })),
+
   // EDITOR + PLAYGROUND
   xmls: starterXMLs.slice(0, 11), // Initialize with first 11 starter elements (including ship and trail)
   disabled: [false, false, false, false, false, false, false, false, false, false, false, ...Array(MAX_ELEMENTS - 11).fill(true)],
