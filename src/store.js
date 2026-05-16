@@ -40,6 +40,12 @@ let useStore = create((set, get) => ({
     set({ worldWidth, worldHeight, worldCellCount });
   },
 
+  // APP MODE: 'mapmaker' = full editor, 'game' = ship placement + play only
+  appMode: "mapmaker",
+  setAppMode: (mode) => set(() => ({ appMode: mode })),
+  gameStarted: false,
+  setGameStarted: (v) => set(() => ({ gameStarted: v })),
+
   updateScheme: "RANDOM_CYCLIC",
   setUpdateScheme: (e) => set(() => ({ updateScheme: e })),
   taggedMode: false,
@@ -116,8 +122,8 @@ let useStore = create((set, get) => ({
 
       let [h, s, l] = colors[i];
       let color = `hsla(${h * 360},${s * 100}%,${l * 100}%,0.5)`;
-      document.querySelector(".blocklyMainBackground").style.fill =
-        color.replace("0.5", "0.3");
+      const bg = document.querySelector(".blocklyMainBackground");
+      if (bg) bg.style.fill = color.replace("0.5", "0.3");
 
       return { xmls, colors, color2s, elements };
     }),

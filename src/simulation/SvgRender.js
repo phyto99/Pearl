@@ -37,7 +37,7 @@ class SvgRenderer {
 
   hasSolid(sands, x, y, ww, wh) {
     if (x < 0 || x >= ww || y < 0 || y >= wh) return false;
-    return isSolidTile(sands[(y * this.w + x) * 4]);
+    return isSolidTile(this.terrainElement(sands, x, y));
   }
 
   getElement(sands, x, y, ww, wh) {
@@ -45,7 +45,18 @@ class SvgRenderer {
     return sands[(y * this.w + x) * 4];
   }
 
-  render(sands, ww, wh) {
+  // Returns the underlying harbor type if a ship is docked there, else the real element
+  terrainElement(sands, x, y) {
+    const idx = (y * this.w + x) * 4;
+    const e = sands[idx];
+    if (e === SHIP_ELEMENT) {
+      const rc = sands[idx + 3];
+      if (rc === 5 || rc === 6) return rc;
+    }
+    return e;
+  }
+
+  render(sands, trails, ww, wh) {
     const { colors, color2s } = useStore.getState();
     const ctx = this.ctx;
     const w = this.w;
@@ -56,13 +67,13 @@ class SvgRenderer {
     // PASS 1: Draw all base tiles as full squares
     for (let y = 0; y < wh; y++) {
       for (let x = 0; x < ww; x++) {
-        const e = sands[(y * w + x) * 4];
+        const e = this.terrainElement(sands, x, y);
         if (!ROUNDED_CORNER_ELEMENTS.has(e)) continue;
-        
+
         const px = x * cs;
         const py = y * cs;
         const fill = FILL_COLORS[e];
-        
+
         ctx.fillStyle = fill;
         ctx.fillRect(px, py, cs, cs);
       }
@@ -70,10 +81,10 @@ class SvgRenderer {
 
     // PASS 2: Cut rounded outer corners ONLY
     ctx.globalCompositeOperation = 'destination-out';
-    
+
     for (let y = 0; y < wh; y++) {
       for (let x = 0; x < ww; x++) {
-        const e = sands[(y * w + x) * 4];
+        const e = this.terrainElement(sands, x, y);
         if (!ROUNDED_CORNER_ELEMENTS.has(e)) continue;
         
         const px = x * cs;
@@ -129,23 +140,27 @@ class SvgRenderer {
     
     ctx.globalCompositeOperation = 'source-over';
 
-    // PASS 3: Harbor holes
+    // PASS 3: Harbor holes — cut transparent circles
+    ctx.globalCompositeOperation = 'destination-out';
     for (let y = 0; y < wh; y++) {
       for (let x = 0; x < ww; x++) {
-        const e = sands[(y * w + x) * 4];
+        const e = this.terrainElement(sands, x, y);
         if (HOLE_ELEMENTS.has(e)) {
           const px = x * cs;
           const py = y * cs;
-          ctx.fillStyle = '#FFFFFF';
+          ctx.fillStyle = '#000000';
           ctx.beginPath();
           ctx.arc(px + cs / 2, py + cs / 2, cs * 0.3, 0, Math.PI * 2);
           ctx.fill();
         }
       }
     }
+    ctx.globalCompositeOperation = 'source-over';
 
-    // PASS 4: Trails
-    this.renderTrails(sands, ww, wh, cs, colors);
+    // PASS 4: Trails — destination-over so they show through harbor holes but sit behind solid tiles
+    ctx.globalCompositeOperation = 'destination-over';
+    this.renderTrails(sands, trails, ww, wh, cs, colors);
+    ctx.globalCompositeOperation = 'source-over';
 
     // PASS 5: Other elements
     for (let y = 0; y < wh; y++) {
@@ -157,7 +172,19 @@ class SvgRenderer {
         const px = x * cs, py = y * cs;
         
         if (e === 4 && this.svgImages.has(4)) {
+          // Draw city background color
+          const c1 = colors[e] || [0.5, 0.5, 0.5];
+          const c2 = color2s[e] || [0.5, 0.5, 0.5];
+          const ra = (sands[(y * w + x) * 4 + 1] || 50) / 100;
+          const hh = c1[0] * (1 - ra) + c2[0] * ra;
+          const ss = c1[1] * (1 - ra) + c2[1] * ra;
+          const ll = c1[2] * (1 - ra) + c2[2] * ra;
+          ctx.fillStyle = `hsl(${hh * 360},${ss * 100}%,${ll * 100}%)`;
+          ctx.fillRect(px, py, cs, cs);
+          // Cut star as transparent hole
+          ctx.globalCompositeOperation = 'destination-out';
           ctx.drawImage(this.svgImages.get(4), px, py, cs, cs);
+          ctx.globalCompositeOperation = 'source-over';
         } else if (e === SHIP_ELEMENT) {
           ctx.fillStyle = '#0066FF';
           ctx.beginPath();
@@ -184,7 +211,7 @@ class SvgRenderer {
     // PASS 6: Add inverse corner bridges in empty cells adjacent to solid L-patterns
     for (let y = 0; y < wh; y++) {
       for (let x = 0; x < ww; x++) {
-        const e = sands[(y * w + x) * 4];
+        const e = this.terrainElement(sands, x, y);
         if (ROUNDED_CORNER_ELEMENTS.has(e)) continue;
         
         const px = x * cs;
@@ -220,86 +247,59 @@ class SvgRenderer {
     }
   }
 
-  renderTrails(sands, ww, wh, cs, colors) {
-    const w = this.w;
-    const pos = [];
-    for (let y = 0; y < wh; y++)
-      for (let x = 0; x < ww; x++)
-        if (sands[(y * w + x) * 4] === TRAIL_ELEMENT) pos.push({ x, y });
-
-    if (!pos.length) return;
-
+  renderTrails(sands, trails, ww, wh, cs, colors) {
     const c = colors[TRAIL_ELEMENT] || [0.6, 0.7, 0.8];
     const col = `hsl(${c[0] * 360},${c[1] * 100}%,${c[2] * 100}%)`;
-
-    const key = (x, y) => y * ww + x;
-    const map = new Map(pos.map(p => [key(p.x, p.y), p]));
-    const vis = new Set();
-    const segs = [];
-
-    for (const st of pos) {
-      const k = key(st.x, st.y);
-      if (vis.has(k)) continue;
-      const seg = [], stk = [st];
-      vis.add(k);
-      while (stk.length) {
-        const cur = stk.pop();
-        seg.push(cur);
-        for (let dy = -1; dy <= 1; dy++)
-          for (let dx = -1; dx <= 1; dx++) {
-            if (!dx && !dy) continue;
-            const nk = key(cur.x + dx, cur.y + dy);
-            if (map.has(nk) && !vis.has(nk)) { vis.add(nk); stk.push(map.get(nk)); }
-          }
-      }
-      segs.push(seg);
-    }
-
     const ctx = this.ctx;
+
     ctx.strokeStyle = col;
     ctx.fillStyle = col;
-    ctx.lineWidth = cs * 0.6;
+    ctx.lineWidth = cs * 0.22;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
-    for (const seg of segs) {
-      if (seg.length === 1) {
-        ctx.beginPath();
-        ctx.arc(seg[0].x * cs + cs / 2, seg[0].y * cs + cs / 2, cs * 0.3, 0, Math.PI * 2);
-        ctx.fill();
-      } else {
-        const ord = this.order(seg);
-        ctx.beginPath();
-        ctx.moveTo(ord[0].x * cs + cs / 2, ord[0].y * cs + cs / 2);
-        for (let i = 1; i < ord.length; i++) ctx.lineTo(ord[i].x * cs + cs / 2, ord[i].y * cs + cs / 2);
-        ctx.stroke();
-      }
-    }
-  }
+    for (let y = 0; y < wh; y++) {
+      for (let x = 0; x < ww; x++) {
+        const trailVal = trails[y * this.w + x];
+        if (!trailVal) continue;
 
-  order(pts) {
-    if (pts.length <= 2) return pts;
-    const ord = [pts[0]], rem = new Set(pts.slice(1));
-    while (rem.size) {
-      const last = ord[ord.length - 1];
-      let near = null, nd = Infinity;
-      for (const p of rem) {
-        const d = Math.abs(p.x - last.x) + Math.abs(p.y - last.y);
-        if (d < nd) { nd = d; near = p; }
+        const cx = x * cs + cs / 2;
+        const cy = y * cs + cs / 2;
+
+        // Draw dot
+        ctx.beginPath();
+        ctx.arc(cx, cy, cs * 0.11, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Draw line for each packed direction (bits 0-3 = dir1, bits 4-7 = dir2)
+        const dirs = [trailVal & 0x0F, (trailVal >> 4) & 0x0F];
+        for (const dir of dirs) {
+          if (!dir) continue;
+          const d = dir - 1;
+          const ddx = Math.floor(d / 3) - 1;
+          const ddy = (d % 3) - 1;
+          const nx = x + ddx;
+          const ny = y + ddy;
+          const neighborIsTrail = nx >= 0 && nx < ww && ny >= 0 && ny < wh && trails[ny * this.w + nx] > 0;
+          const neighborIsShip = nx >= 0 && nx < ww && ny >= 0 && ny < wh && sands[(ny * this.w + nx) * 4] === SHIP_ELEMENT;
+          if (neighborIsTrail || neighborIsShip) {
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.lineTo(nx * cs + cs / 2, ny * cs + cs / 2);
+            ctx.stroke();
+          }
+        }
       }
-      if (near && nd <= 2) { ord.push(near); rem.delete(near); }
-      else { const n = rem.values().next().value; ord.push(n); rem.delete(n); }
     }
-    return ord;
   }
 }
 
-export function startSvgGL({ canvas, sands }) {
+export function startSvgGL({ canvas, sands, trails }) {
   const renderer = new SvgRenderer(canvas);
   return {
     render: () => {
       const { worldWidth, worldHeight } = useStore.getState();
-      renderer.render(sands, worldWidth, worldHeight);
+      renderer.render(sands, trails, worldWidth, worldHeight);
     },
     renderer
   };

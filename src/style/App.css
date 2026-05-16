@@ -112,6 +112,11 @@ pre {
   /* transition: filter 10ms linear; */
 }
 
+.game-panel-left {
+  flex-shrink: 0;
+  width: 0;
+}
+
 .resizeHandle {
   width: 8px;
   height: 100%;

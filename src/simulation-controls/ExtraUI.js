@@ -45,13 +45,15 @@ const ExtraUI = () => {
   });
   const playMode = !query.edit;
 
-  const session = null; // No authentication in local mode
+  const appMode = useStore((state) => state.appMode);
+  const setAppMode = useStore((state) => state.setAppMode);
+  const gameStarted = useStore((state) => state.gameStarted);
+  const setGameStarted = useStore((state) => state.setGameStarted);
+  const setPaused = useStore((state) => state.setPaused);
 
   let [copiedState, setCopiedState] = useState(null);
   const post = useStore((state) => state.post);
-
   const paused = useStore((state) => state.paused);
-
   const pos = useStore((state) => state.pos);
   const elements = useStore((state) => state.elements);
   let index = (pos[0] + pos[1] * width) * 4;
@@ -65,20 +67,92 @@ const ExtraUI = () => {
     mobile = true;
   }
 
-  let stars = post?._count?.stars;
-  const [starsOverride, setStarsOverride] = useState(null);
-
-  if (starsOverride !== null) {
-    stars = starsOverride;
+  function exportToClipboard() {
+    let json = prepareExport();
+    var data = [
+      new ClipboardItem({
+        "text/plain": new Blob([json], { type: "text/plain" }),
+      }),
+    ];
+    navigator.clipboard
+      .write(data)
+      .then(
+        () => setCopiedState(" ✓"),
+        () => setCopiedState("...Error")
+      )
+      .finally(() => {
+        window.setTimeout(() => setCopiedState(null), 3000);
+      });
   }
 
-  let isStarred = session?.userId && post?.stars?.length > 0;
-  const [isStarredOverride, setIsStarredOverride] = useState(null);
-
-  if (isStarredOverride !== null) {
-    isStarred = isStarredOverride;
+  function switchToGameMode() {
+    setAppMode("game");
+    setGameStarted(false);
+    setPaused(true);
+    // Auto-select ship element
+    useStore.getState().setSelected(9);
   }
 
+  function switchToMapmaker() {
+    setAppMode("mapmaker");
+    setGameStarted(false);
+    setPaused(false);
+  }
+
+  function startGame() {
+    setGameStarted(true);
+    setPaused(false);
+  }
+
+  if (appMode === "game") {
+    return (
+      <div className="extras-tray">
+        <div className="controls-row">
+          <span>
+            {!gameStarted ? (
+              <>
+                <button
+                  className="simulation-button"
+                  style={{ fontWeight: "bold", background: "rgba(0,180,80,0.3)" }}
+                  onClick={startGame}
+                >
+                  ▶ Play
+                </button>
+                <button
+                  className="simulation-button"
+                  onClick={switchToMapmaker}
+                >
+                  ← Mapmaker
+                </button>
+              </>
+            ) : (
+              <>
+                <PlayPause />
+                <button
+                  className="simulation-button"
+                  onClick={() => {
+                    setGameStarted(false);
+                    setPaused(true);
+                  }}
+                >
+                  ↺ Reset Game
+                </button>
+                <button
+                  className="simulation-button"
+                  onClick={switchToMapmaker}
+                >
+                  ← Mapmaker
+                </button>
+              </>
+            )}
+          </span>
+        </div>
+        <img className="wordmark" src="/sandspiel.png"></img>
+      </div>
+    );
+  }
+
+  // Mapmaker mode
   return (
     <div className="extras-tray">
       <div className="controls-row">
@@ -115,7 +189,7 @@ const ExtraUI = () => {
         </span>
         <SizeButtons />
       </div>
-      
+
       <div className="controls-row">
         <span>
           <label style={{ fontSize: '12px', marginRight: '8px' }}>Tick Speed:</label>
@@ -145,83 +219,22 @@ const ExtraUI = () => {
         <WorldSizeButtons />
       </div>
 
-      {/* <button
-        className="simulation-button"
-        onClick={() => {
-          addBorder();
-        }}
-      >
-        Add Border
-      </button> */}
-      {session ? (
-        <div>
-          {post && (
-            <div>
-              Replying to{" "}
-              <a
-                onClick={() => {
-                  router.push({
-                    pathname: `/post/${post.id}`,
-                  });
-                }}
-              >
-                {post?.user?.name ?? post?.user?.id?.slice(0, 8)}'s post
-              </a>
-            </div>
-          )}
-          {session && <UploadButtons />}
-
-          {/*post ? (
-            <button
-              className="simulation-button"
-              onClick={() => {
-                reset();
-              }}
-            >
-              Restart
-            </button>
-          ) : (
-            ""
-          )*/}
-
-          {!playMode &&
-            query.admin &&
-            window.location.host.includes("localhost") && (
-              <button
-                className="simulation-button"
-                onClick={() => {
-                  let json = prepareExport();
-
-                  var data = [
-                    // eslint-disable-next-line no-undef
-                    new ClipboardItem({
-                      "text/plain": new Blob([json], { type: "text/plain" }),
-                    }),
-                  ];
-                  navigator.clipboard
-                    .write(data)
-                    .then(
-                      function () {
-                        setCopiedState(" ✓");
-                      },
-                      function () {
-                        setCopiedState("...Error");
-                      }
-                    )
-                    .finally(() => {
-                      window.setTimeout(() => {
-                        setCopiedState(null);
-                      }, 3000);
-                    });
-                }}
-              >
-                Export to Clipboard {copiedState}
-              </button>
-            )}
-        </div>
-      ) : (
-        ""
-      )}
+      <div className="controls-row">
+        <button
+          className="simulation-button"
+          style={{ fontWeight: "bold", background: "rgba(0,100,255,0.2)" }}
+          onClick={exportToClipboard}
+        >
+          Export Map {copiedState}
+        </button>
+        <button
+          className="simulation-button"
+          style={{ fontWeight: "bold", background: "rgba(0,180,80,0.2)" }}
+          onClick={switchToGameMode}
+        >
+          ▶ Game Mode
+        </button>
+      </div>
 
       <img className="wordmark" src="/sandspiel.png"></img>
     </div>

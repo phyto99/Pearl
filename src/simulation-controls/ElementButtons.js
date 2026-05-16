@@ -3,6 +3,10 @@ import classNames from "classnames";
 import { MAX_ELEMENTS, useStore } from "../store";
 import useSound from "use-sound";
 
+// Element indices matching starterblocks.js order
+const ELEM_SHIP = 9;
+const ELEM_TRAIL = 10;
+
 const ElementButton = ({
   i,
   elements,
@@ -26,8 +30,8 @@ const ElementButton = ({
   });
 
   let background = `linear-gradient(45deg,
-    ${color}, 
-    ${color2}    
+    ${color},
+    ${color2}
     )`;
   return (
     <button
@@ -35,14 +39,12 @@ const ElementButton = ({
       onClick={() => {
         if (!setSelected) return;
         play();
-        document.querySelector(".blocklyMainBackground").style.fill =
-          background;
-        color.replace("0.5", "0.3");
+        const bg = document.querySelector(".blocklyMainBackground");
+        if (bg) bg.style.fill = background.replace("0.5", "0.3");
         setSelected(i);
       }}
       style={{
         pointerEvents: inert && "none",
-        // backgroundColor: selected ? color.replace("0.5", "1.5") : color,
         background,
       }}
     >
@@ -59,6 +61,7 @@ const ElementButtons = ({
   elements,
   disabled,
   inert = false,
+  appMode = "mapmaker",
 }) => {
   let enabledElements = elements.filter((_, i) => !disabled[i]);
   let [hovering, setHovering] = useState(null);
@@ -68,6 +71,13 @@ const ElementButtons = ({
     <div className="element-tray">
       {elements.map((e, i) => {
         if (disabled[i]) return null;
+
+        // Mapmaker: hide ship and trail
+        if (appMode === "mapmaker" && (i === ELEM_SHIP || i === ELEM_TRAIL)) return null;
+
+        // Game mode: only show ship
+        if (appMode === "game" && i !== ELEM_SHIP) return null;
+
         return (
           <ElementButton
             elements={elements}
@@ -82,7 +92,7 @@ const ElementButtons = ({
           />
         );
       })}
-      {inert === false && (
+      {inert === false && appMode === "mapmaker" && (
         <span onMouseLeave={() => setHovering(null)}>
           <button
             onMouseEnter={() => setHovering("-")}
@@ -119,6 +129,7 @@ export const WrappedElementButtons = ({ selectedElement, setSelected }) => {
   const disabled = useStore((state) => state.disabled);
   const colors = useStore((state) => state.colors);
   const color2s = useStore((state) => state.color2s);
+  const appMode = useStore((state) => state.appMode);
 
   return (
     <ElementButtons
@@ -128,6 +139,7 @@ export const WrappedElementButtons = ({ selectedElement, setSelected }) => {
       color2s={color2s}
       selectedElement={selectedElement}
       setSelected={setSelected}
+      appMode={appMode}
     />
   );
 };

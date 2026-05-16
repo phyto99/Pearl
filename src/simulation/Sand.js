@@ -15,7 +15,13 @@ import {
   BooleanParam,
 } from "next-query-params";
 
-import { sands, width, height, tick, initSand, pushUndo } from "./SandApi";
+import { sands, trails, width, height, tick, initSand, pushUndo } from "./SandApi";
+
+// Element indices (must match starterblocks.js order)
+const ELEM_SHIP = 9;
+const ELEM_TRAIL = 10;
+const ELEM_HARBOR = 5;
+const ELEM_HOME_HARBOR = 6;
 import { pointsAlongLine } from "../utils/utils";
 import LoadingCurtain from "../pages/loadingCurtain.js";
 let dpi = 4;
@@ -130,6 +136,7 @@ const Sand = () => {
     edit: withDefault(BooleanParam, false),
   });
   const playMode = !query.edit;
+  const appMode = useStore((state) => state.appMode);
 
   let starterWidth = 700;
   let mobile = false;
@@ -175,6 +182,7 @@ const Sand = () => {
       width,
       height,
       sands,
+      trails,
     }).render;
   });
 
@@ -274,6 +282,23 @@ const Sand = () => {
       let points = pointsAlongLine(prevPos[0], prevPos[1], eX, eY, 1);
       globalState.tNoise += 0.05;
 
+      const { appMode, gameStarted } = useStore.getState();
+
+      // Mapmaker: block ship and trail placement
+      if (appMode === "mapmaker" && (selectedElement === ELEM_SHIP || selectedElement === ELEM_TRAIL)) {
+        return;
+      }
+
+      // Game mode: block all drawing once simulation has started
+      if (appMode === "game" && gameStarted) {
+        return;
+      }
+
+      // Game mode placement phase: only allow ship placement
+      if (appMode === "game" && selectedElement !== ELEM_SHIP) {
+        return;
+      }
+
       points.forEach(({ x, y }, i) => {
         if (i == 0 && (sI % 4 == 0 || force)) {
           play2({
@@ -290,11 +315,19 @@ const Sand = () => {
             if (rr > r * r) {
               continue;
             }
-            initSand(
-              [Math.floor(x + dx), Math.floor(y + dy)],
-              selectedElement,
-              [dx * 4, dy * 4]
-            );
+            const px = Math.floor(x + dx);
+            const py = Math.floor(y + dy);
+
+            // Game mode: ship can only be placed on harbor or home harbor
+            if (appMode === "game" && selectedElement === ELEM_SHIP) {
+              const cellIndex = (px + py * width) * 4;
+              const cellElement = sands[cellIndex];
+              if (cellElement !== ELEM_HARBOR && cellElement !== ELEM_HOME_HARBOR) {
+                continue;
+              }
+            }
+
+            initSand([px, py], selectedElement, [dx * 4, dy * 4]);
           }
         }
       });
@@ -321,7 +354,7 @@ const Sand = () => {
           setIsDragging(true);
         }}
       ></div>
-      {
+      {appMode === "mapmaker" && (
         <button
           className="editor-toggle"
           style={{
@@ -337,7 +370,7 @@ const Sand = () => {
         >
           {playMode ? "<-  Open Editor " : "-> Close Editor"}
         </button>
-      }
+      )}
       <WrappedElementButtons
         selectedElement={selectedElement}
         setSelected={setSelected}

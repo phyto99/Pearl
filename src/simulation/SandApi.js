@@ -16,6 +16,12 @@ export let height = 300;
 export let cellCount = width * height;
 
 export let sands = new Uint8Array(cellCount * 4);
+
+// Separate trail overlay — one byte per cell, never touches sands
+// 0 = no trail, non-zero = trail with encoded movement direction
+// Encoding: (dx+1)*3 + (dy+1) + 1  →  range 1-9 (5 = (0,0), invalid/unused)
+export let trails = new Uint8Array(cellCount);
+
 let undoStack = [];
 let afterFrameStatements = [];
 
@@ -265,8 +271,16 @@ export function initSand([x, y], v, [bx, by]) {
     return;
   }
 
-  // Ships (element 9) should start with RA = 0 for immediate movement
-  const ra = v === 9 ? 0 : randomData(bx ?? x, by ?? y);
+  const cellIndex = getIndex(x, y) / 4;
+  trails[cellIndex] = 0;
+
+  if (v === 9) {
+    const existingElement = sands[cellIndex * 4];
+    setSand(x, y, 9, 0, 0, existingElement);
+    return;
+  }
+
+  const ra = randomData(bx ?? x, by ?? y);
   setSand(x, y, v, ra, 0, 0);
 }
 export function setSand(x, y, v, ra, rb, rc) {
@@ -813,19 +827,17 @@ function handleShipMovement() {
   previousKeys.ArrowRight = keys["ArrowRight"];
   
   if (dx === 0 && dy === 0) return;
-  
-  // Find all ships
+
+  // Scan for all ships
   const shipPositions = [];
-  for (let x = 0; x < worldWidth; x++) {
-    for (let y = 0; y < worldHeight; y++) {
+  for (let y = 0; y < worldHeight; y++) {
+    for (let x = 0; x < worldWidth; x++) {
       const index = getIndex(x, y);
-      if (sands[index] === 9) { // Ship element
-        const shipKey = `${x},${y}`;
-        const cooldown = shipCooldowns.get(shipKey) || 0;
-        
-        // New key press = instant movement, held key = respect cooldown
+      if (sands[index] === 9) {
+        const cellIndex = index / 4;
+        const cooldown = shipCooldowns.get(cellIndex) || 0;
         if (isNewKeyPress || cooldown <= 0) {
-          shipPositions.push({ x, y, index, shipKey });
+          shipPositions.push({ x, y, index, cellIndex });
         }
       }
     }
@@ -839,24 +851,36 @@ function handleShipMovement() {
     if (newX >= 0 && newX < worldWidth && newY >= 0 && newY < worldHeight) {
       const newIndex = getIndex(newX, newY);
       
-      // Ships can move through air (0) or trails (10)
-      if (sands[newIndex] === 0 || sands[newIndex] === 10) {
-        // Move ship
+      const destElement = sands[newIndex];
+      const newCellIndex = newIndex / 4;
+      // Ships pass through air (0), harbor (5/6), or any cell with a trail overlay
+      // (trail cells in sands are element 10, always paired with trails[]>0, so no need to check element 10 separately)
+      if (destElement === 0 || destElement === 5 || destElement === 6 || trails[newCellIndex] > 0) {
+        // Arrive: write ship, store underlying element in RC
         sands[newIndex] = 9;
-        sands[newIndex + 1] = sands[ship.index + 1];
-        sands[newIndex + 2] = sands[ship.index + 2];
-        sands[newIndex + 3] = sands[ship.index + 3];
-        
-        // Leave trail
-        sands[ship.index] = 10;
-        sands[ship.index + 1] = randomData(ship.x, ship.y);
+        sands[newIndex + 1] = 0;
+        sands[newIndex + 2] = 0;
+        sands[newIndex + 3] = destElement;
+
+        // Depart: restore underlying element (air→trail for physics, harbor→harbor)
+        const underlyingElement = sands[ship.index + 3];
+        sands[ship.index] = underlyingElement === 0 ? 10 : underlyingElement;
+        sands[ship.index + 1] = 0;
         sands[ship.index + 2] = 0;
         sands[ship.index + 3] = 0;
-        
-        // Set cooldown: instant for new press, cellular speed for held
-        const newShipKey = `${newX},${newY}`;
-        shipCooldowns.delete(ship.shipKey);
-        shipCooldowns.set(newShipKey, isNewKeyPress ? 0 : 1);
+
+        // Pack movement direction into trail overlay (bits 0-3 = dir1, bits 4-7 = dir2)
+        const trailDir = (dx + 1) * 3 + (dy + 1) + 1;
+        const existing = trails[ship.cellIndex];
+        const dir1 = existing & 0x0F;
+        if (dir1 === 0) {
+          trails[ship.cellIndex] = trailDir;
+        } else if ((existing >> 4) === 0 && trailDir !== dir1) {
+          trails[ship.cellIndex] = dir1 | (trailDir << 4);
+        }
+
+        shipCooldowns.delete(ship.cellIndex);
+        shipCooldowns.set(newCellIndex, isNewKeyPress ? 0 : 1);
       }
     }
   }
