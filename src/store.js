@@ -46,6 +46,28 @@ let useStore = create((set, get) => ({
   gameStarted: false,
   setGameStarted: (v) => set(() => ({ gameStarted: v })),
 
+  // SHIP TYPES — modular ship system (grey = not yet implemented)
+  shipTypes: [
+    { id: 0, name: "Net Ship",    color: "#0066FF", implemented: true  },
+    { id: 1, name: "Barrier",     color: "#888888", implemented: false },
+    { id: 2, name: "Drift Net",   color: "#888888", implemented: false },
+  ],
+  selectedShipType: 0,
+  setSelectedShipType: (t) => set(() => ({ selectedShipType: t })),
+
+  // SCORE — fish/creature counts per element index
+  fishCounts: {},
+  addFishCounts: (counts) =>
+    set((state) => {
+      const fishCounts = { ...state.fishCounts };
+      for (const [elem, n] of Object.entries(counts)) {
+        const k = parseInt(elem);
+        fishCounts[k] = (fishCounts[k] || 0) + n;
+      }
+      return { fishCounts };
+    }),
+  resetFishCounts: () => set(() => ({ fishCounts: {} })),
+
   updateScheme: "RANDOM_CYCLIC",
   setUpdateScheme: (e) => set(() => ({ updateScheme: e })),
   taggedMode: false,

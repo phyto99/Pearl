@@ -50,12 +50,17 @@ const ExtraUI = () => {
   const gameStarted = useStore((state) => state.gameStarted);
   const setGameStarted = useStore((state) => state.setGameStarted);
   const setPaused = useStore((state) => state.setPaused);
+  const fishCounts = useStore((state) => state.fishCounts);
+  const resetFishCounts = useStore((state) => state.resetFishCounts);
+  const shipTypes = useStore((state) => state.shipTypes);
+  const selectedShipType = useStore((state) => state.selectedShipType);
+  const setSelectedShipType = useStore((state) => state.setSelectedShipType);
+  const elements = useStore((state) => state.elements);
 
   let [copiedState, setCopiedState] = useState(null);
   const post = useStore((state) => state.post);
   const paused = useStore((state) => state.paused);
   const pos = useStore((state) => state.pos);
-  const elements = useStore((state) => state.elements);
   let index = (pos[0] + pos[1] * width) * 4;
   let t = sands[index];
   let g = sands[index + 1];
@@ -89,8 +94,8 @@ const ExtraUI = () => {
     setAppMode("game");
     setGameStarted(false);
     setPaused(true);
-    // Auto-select ship element
-    useStore.getState().setSelected(9);
+    useStore.getState().resetFishCounts();
+    useStore.getState().setSelected(7); // Ship element index
   }
 
   function switchToMapmaker() {
@@ -104,9 +109,18 @@ const ExtraUI = () => {
     setPaused(false);
   }
 
+  function resetGame() {
+    setGameStarted(false);
+    setPaused(true);
+    resetFishCounts();
+  }
+
   if (appMode === "game") {
+    const scoreEntries = Object.entries(fishCounts).filter(([, n]) => n > 0);
+
     return (
       <div className="extras-tray">
+        {/* Controls row */}
         <div className="controls-row">
           <span>
             {!gameStarted ? (
@@ -118,35 +132,77 @@ const ExtraUI = () => {
                 >
                   ▶ Play
                 </button>
-                <button
-                  className="simulation-button"
-                  onClick={switchToMapmaker}
-                >
+                <button className="simulation-button" onClick={switchToMapmaker}>
                   ← Mapmaker
                 </button>
               </>
             ) : (
               <>
                 <PlayPause />
-                <button
-                  className="simulation-button"
-                  onClick={() => {
-                    setGameStarted(false);
-                    setPaused(true);
-                  }}
-                >
+                <button className="simulation-button" onClick={resetGame}>
                   ↺ Reset Game
                 </button>
-                <button
-                  className="simulation-button"
-                  onClick={switchToMapmaker}
-                >
+                <button className="simulation-button" onClick={switchToMapmaker}>
                   ← Mapmaker
                 </button>
               </>
             )}
           </span>
         </div>
+
+        {/* Ship type selector */}
+        <div className="controls-row" style={{ alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 11, marginRight: 4, opacity: 0.7 }}>Ship:</span>
+          {shipTypes.map((st) => (
+            <button
+              key={st.id}
+              title={st.implemented ? st.name : `${st.name} (coming soon)`}
+              onClick={() => st.implemented && setSelectedShipType(st.id)}
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: 4,
+                border: selectedShipType === st.id ? "2px solid #fff" : "2px solid transparent",
+                background: st.implemented ? st.color : "#555",
+                opacity: st.implemented ? 1 : 0.45,
+                cursor: st.implemented ? "pointer" : "default",
+                padding: 0,
+                fontSize: 10,
+                color: "#fff",
+                overflow: "hidden",
+                whiteSpace: "nowrap",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {!st.implemented && "?"}
+            </button>
+          ))}
+          <span style={{ fontSize: 10, opacity: 0.6, marginLeft: 2 }}>
+            {shipTypes[selectedShipType]?.name}
+          </span>
+        </div>
+
+        {/* Score */}
+        <div className="controls-row" style={{ flexWrap: "wrap", gap: 6 }}>
+          {scoreEntries.length === 0 ? (
+            <span style={{ fontSize: 11, opacity: 0.5 }}>No catches yet</span>
+          ) : (
+            scoreEntries.map(([elem, n]) => (
+              <span
+                key={elem}
+                style={{
+                  fontSize: 12,
+                  background: "rgba(255,255,255,0.1)",
+                  borderRadius: 4,
+                  padding: "1px 6px",
+                }}
+              >
+                {elements[parseInt(elem)] ?? `#${elem}`}: {n}
+              </span>
+            ))
+          )}
+        </div>
+
         <img className="wordmark" src="/sandspiel.png"></img>
       </div>
     );

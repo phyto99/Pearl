@@ -790,6 +790,86 @@ export const fireEvent = (offset) => {
   behaveFunction();
 };
 
+const ELEM_FISH_MIN = 11;
+const ELEM_FISH_MAX = 18;
+
+function isFishElement(elem) {
+  return elem >= ELEM_FISH_MIN && elem <= ELEM_FISH_MAX;
+}
+
+// Flood-fill from world borders through non-trail cells.
+// Any cell not reached AND not a trail cell = enclosed inside the net.
+// Counts + clears enclosed fish, then clears all trail cells.
+function detectAndClearLoop() {
+  const { worldWidth, worldHeight } = globalState;
+
+  const visited = new Uint8Array(cellCount); // indexed by x + y * width
+  const queue = [];
+  let qi = 0;
+
+  for (let y = 0; y < worldHeight; y++) {
+    for (let x = 0; x < worldWidth; x++) {
+      if (x > 0 && x < worldWidth - 1 && y > 0 && y < worldHeight - 1) continue;
+      const ci = x + y * width;
+      if (trails[ci] === 0 && !visited[ci]) {
+        visited[ci] = 1;
+        queue.push(x, y);
+      }
+    }
+  }
+
+  while (qi < queue.length) {
+    const cx = queue[qi++];
+    const cy = queue[qi++];
+    const nx1 = cx + 1, nx2 = cx - 1, ny1 = cy + 1, ny2 = cy - 1;
+    for (let i = 0; i < 4; i++) {
+      const nx = i < 2 ? (i === 0 ? nx1 : nx2) : cx;
+      const ny = i < 2 ? cy : (i === 2 ? ny1 : ny2);
+      if (nx < 0 || nx >= worldWidth || ny < 0 || ny >= worldHeight) continue;
+      const nci = nx + ny * width;
+      if (visited[nci] || trails[nci] > 0) continue;
+      visited[nci] = 1;
+      queue.push(nx, ny);
+    }
+  }
+
+  const counts = {};
+  for (let y = 0; y < worldHeight; y++) {
+    for (let x = 0; x < worldWidth; x++) {
+      const ci = x + y * width;
+      if (!visited[ci] && trails[ci] === 0) {
+        const elem = sands[ci * 4];
+        if (isFishElement(elem)) {
+          counts[elem] = (counts[elem] || 0) + 1;
+          sands[ci * 4] = 0;
+          sands[ci * 4 + 1] = 0;
+          sands[ci * 4 + 2] = 0;
+          sands[ci * 4 + 3] = 0;
+        }
+      }
+    }
+  }
+
+  for (let y = 0; y < worldHeight; y++) {
+    for (let x = 0; x < worldWidth; x++) {
+      const ci = x + y * width;
+      if (trails[ci] > 0) {
+        trails[ci] = 0;
+        if (sands[ci * 4] === 8) {
+          sands[ci * 4] = 0;
+          sands[ci * 4 + 1] = 0;
+          sands[ci * 4 + 2] = 0;
+          sands[ci * 4 + 3] = 0;
+        }
+      }
+    }
+  }
+
+  if (Object.keys(counts).length > 0) {
+    useStore.getState().addFishCounts(counts);
+  }
+}
+
 // Ship movement state
 let previousKeys = {
   ArrowUp: false,
@@ -853,14 +933,21 @@ function handleShipMovement() {
       
       const destElement = sands[newIndex];
       const newCellIndex = newIndex / 4;
-      // Ships pass through air (0), harbor (3/4), or any cell with a trail overlay
-      // (trail cells in sands are element 8, always paired with trails[]>0, so no need to check element 8 separately)
-      if (destElement === 0 || destElement === 2 || destElement === 3 || destElement === 4 || trails[newCellIndex] > 0) {
+      const closesLoop = trails[newCellIndex] > 0;
+      const fishCapture = isFishElement(destElement);
+
+      // Passable: air, city, harbor, home harbor, trail cells, fish (captured on contact)
+      if (destElement === 0 || destElement === 2 || destElement === 3 || destElement === 4 || closesLoop || fishCapture) {
+        if (fishCapture) {
+          useStore.getState().addFishCounts({ [destElement]: 1 });
+        }
+
         // Arrive: write ship, store underlying element in RC
+        // For fish capture, store 0 so departure leaves a trail (not a fish cell)
         sands[newIndex] = 7;
         sands[newIndex + 1] = 0;
         sands[newIndex + 2] = 0;
-        sands[newIndex + 3] = destElement;
+        sands[newIndex + 3] = fishCapture ? 0 : destElement;
 
         // Depart: restore underlying element (air→trail for physics, harbor→harbor)
         const underlyingElement = sands[ship.index + 3];
@@ -881,6 +968,10 @@ function handleShipMovement() {
 
         shipCooldowns.delete(ship.cellIndex);
         shipCooldowns.set(newCellIndex, isNewKeyPress ? 0 : 1);
+
+        if (closesLoop) {
+          detectAndClearLoop();
+        }
       }
     }
   }
