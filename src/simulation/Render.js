@@ -58,6 +58,8 @@ let startWebGL = ({ canvas, width, height, sands, isSnapshot }) => {
       "colors[14]": () => useStore.getState().colors[14] ?? [0.5, 0.5, 0.5],
       "colors[15]": () => useStore.getState().colors[15] ?? [0.5, 0.5, 0.5],
       "colors[16]": () => useStore.getState().colors[16] ?? [0.5, 0.5, 0.5],
+      "colors[17]": () => useStore.getState().colors[17] ?? [0.5, 0.5, 0.5],
+      "colors[18]": () => useStore.getState().colors[18] ?? [0.5, 0.5, 0.5],
 
       "color2s[0]": () => useStore.getState().color2s[0] ?? [0.5, 0.5, 0.5],
       "color2s[1]": () => useStore.getState().color2s[1] ?? [0.5, 0.5, 0.5],
@@ -76,6 +78,8 @@ let startWebGL = ({ canvas, width, height, sands, isSnapshot }) => {
       "color2s[14]": () => useStore.getState().color2s[14] ?? [0.5, 0.5, 0.5],
       "color2s[15]": () => useStore.getState().color2s[15] ?? [0.5, 0.5, 0.5],
       "color2s[16]": () => useStore.getState().color2s[16] ?? [0.5, 0.5, 0.5],
+      "color2s[17]": () => useStore.getState().color2s[17] ?? [0.5, 0.5, 0.5],
+      "color2s[18]": () => useStore.getState().color2s[18] ?? [0.5, 0.5, 0.5],
 
       dpi: window.devicePixelRatio * 2,
     },

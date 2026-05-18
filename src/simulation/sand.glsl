@@ -1,8 +1,8 @@
 precision highp float;
 uniform float t;
 uniform sampler2D data;
-uniform vec3 colors[16];
-uniform vec3 color2s[16];
+uniform vec3 colors[19];
+uniform vec3 color2s[19];
 uniform float scale;
 
 varying vec2 uv;
@@ -109,6 +109,15 @@ void main() {
   } else if (type == 15) {
     colordata1 = colors[15];
     colordata2 = color2s[15];
+  } else if (type == 16) {
+    colordata1 = colors[16];
+    colordata2 = color2s[16];
+  } else if (type == 17) {
+    colordata1 = colors[17];
+    colordata2 = color2s[17];
+  } else if (type == 18) {
+    colordata1 = colors[18];
+    colordata2 = color2s[18];
   }
 
 

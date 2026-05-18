@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git fetch *)",
+      "Bash(git ls-tree *)",
+      "Bash(grep \"\\\\.rs$\")",
+      "Bash(yarn dev *)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\Phyto\\\\sandspiel-studio\" -Force)",
+      "Bash(Select-Object Name, FullName)",
+      "Bash(Format-Table -AutoSize)"
+    ]
+  }
+}

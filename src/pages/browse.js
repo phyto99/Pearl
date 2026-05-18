@@ -1,5 +1,19 @@
 /* eslint-disable @next/next/no-img-element */
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+
+function useDarkMode() {
+  const [dark, setDark] = useState(false);
+  useEffect(() => {
+    setDark(document.body.classList.contains('dark'));
+  }, []);
+  const toggle = useCallback(() => {
+    const next = !document.body.classList.contains('dark');
+    document.body.classList.toggle('dark', next);
+    localStorage.setItem('darkMode', next ? '1' : '0');
+    setDark(next);
+  }, []);
+  return [dark, toggle];
+}
 import { useInfiniteQuery } from "react-query";
 import { useInView } from "react-intersection-observer";
 
@@ -58,7 +72,8 @@ const optionsTime = [
 function Browse() {
   const mobile = typeof window !== 'undefined' ? window.innerWidth <= 700 : false;
   const router = useRouter();
-  const session = null; // No authentication in local mode
+  const session = null;
+  const [dark, toggleDark] = useDarkMode();
 
   const [query, setQuery] = useQueryParams({
     //codeHash: StringParam,
@@ -67,7 +82,7 @@ function Browse() {
     order: withDefault(StringParam, "new"),
     days: StringParam,
     //featured: BooleanParam,
-    edit: withDefault(BooleanParam, true), // Default to editor mode
+    edit: withDefault(BooleanParam, false),
     id: NumberParam,
     admin: BooleanParam,
   });
@@ -100,15 +115,18 @@ function Browse() {
     useStore.setState({ postId });
   }*/
 
-  // Mock data for local mode - no database
-  const isLoading = false;
-  const error = null;
-  const data = {
-    pages: [{
-      posts: [],
-      offset: 0
-    }]
-  };
+  const [maps, setMaps] = React.useState([]);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [error, setError] = React.useState(null);
+
+  React.useEffect(() => {
+    fetch('/api/maps')
+      .then((r) => r.json())
+      .then((list) => { setMaps(list); setIsLoading(false); })
+      .catch((e) => { setError(e.message); setIsLoading(false); });
+  }, []);
+
+  const data = { pages: [{ posts: maps, offset: 0 }] };
   const isFetching = false;
   const isFetchingNextPage = false;
   const fetchNextPage = () => {};
@@ -252,12 +270,19 @@ function Browse() {
                 <button
                   className="editor-toggle"
                   onClick={(e) => {
-                    setQuery({ edit: playMode ? 1 : undefined });
+                    setQuery({ edit: playMode ? true : false });
                   }}
                 >
-                  {playMode ? "<- Open Editor" : "Close Editor ->"}
+                  {playMode ? "Close Gallery ->" : "<- Open Gallery"}
                 </button>
               )}
+              <button
+                onClick={toggleDark}
+                title={dark ? "Light mode" : "Dark mode"}
+                style={{ maxWidth: 36, fontSize: 18, padding: '0 4px' }}
+              >
+                {dark ? "☀️" : "🌙"}
+              </button>
             </div>
           </span>
           <span style={{}}>

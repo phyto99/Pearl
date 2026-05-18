@@ -2,8 +2,8 @@ import { useStore } from "../store";
 import { getIndex, sands } from "./SandApi";
 
 // Elements that need rounded corner treatment (solid land tiles)
-const ROUNDED_CORNER_ELEMENTS = new Set([5, 6, 7, 8]); // harbor, homeharbor, homeisland, island
-const TRAIL_ELEMENT = 10;
+const ROUNDED_CORNER_ELEMENTS = new Set([2, 3, 4, 5, 6]); // city, harbor, homeharbor, homeisland, island
+const TRAIL_ELEMENT = 8;
 
 // Helper to check if an element is a "solid" tile for corner calculations
 const isSolidTile = (elementId) => ROUNDED_CORNER_ELEMENTS.has(elementId);
@@ -71,8 +71,22 @@ class SvgTileRenderer {
     return mask;
   }
 
+  drawStar(cx, cy, outerR, innerR, points) {
+    this.ctx.fillStyle = '#FFFFFF';
+    this.ctx.beginPath();
+    for (let i = 0; i < points * 2; i++) {
+      const r = i % 2 === 0 ? outerR : innerR;
+      const angle = (i * Math.PI) / points - Math.PI / 2;
+      const px = cx + r * Math.cos(angle);
+      const py = cy + r * Math.sin(angle);
+      i === 0 ? this.ctx.moveTo(px, py) : this.ctx.lineTo(px, py);
+    }
+    this.ctx.closePath();
+    this.ctx.fill();
+  }
+
   // Draw a rounded corner tile based on neighbor configuration
-  drawRoundedTile(x, y, neighborMask, diagonalMask, fillColor, holeColor = null) {
+  drawRoundedTile(x, y, neighborMask, diagonalMask, fillColor, holeType = null) {
     const pixelX = x * this.tileSize;
     const pixelY = y * this.tileSize;
     const pixelSize = this.tileSize;
@@ -143,12 +157,16 @@ class SvgTileRenderer {
     this.ctx.closePath();
     this.ctx.fill();
     
-    // Draw harbor hole if needed
-    if (holeColor) {
-      this.ctx.fillStyle = holeColor;
+    // Draw interior mark
+    const cx = pixelX + pixelSize / 2;
+    const cy = pixelY + pixelSize / 2;
+    if (holeType === 'circle') {
+      this.ctx.fillStyle = '#FFFFFF';
       this.ctx.beginPath();
-      this.ctx.arc(pixelX + pixelSize / 2, pixelY + pixelSize / 2, pixelSize * 0.3, 0, Math.PI * 2);
+      this.ctx.arc(cx, cy, pixelSize * 0.3, 0, Math.PI * 2);
       this.ctx.fill();
+    } else if (holeType === 'star') {
+      this.drawStar(cx, cy, pixelSize * 0.38, pixelSize * 0.16, 5);
     }
   }
 
@@ -199,14 +217,15 @@ class SvgTileRenderer {
         const neighborMask = this.getNeighborMask(x, y, worldWidth, worldHeight, sandsData);
         const diagonalMask = this.getDiagonalMask(x, y, worldWidth, worldHeight, sandsData);
         
-        let fillColor, holeColor = null;
-        
-        if (elementType === 8) fillColor = '#000000';
-        else if (elementType === 7) fillColor = '#29FD2F';
-        else if (elementType === 5) { fillColor = '#000000'; holeColor = '#FFFFFF'; }
-        else if (elementType === 6) { fillColor = '#29FD2F'; holeColor = '#FFFFFF'; }
-        
-        this.drawRoundedTile(x, y, neighborMask, diagonalMask, fillColor, holeColor);
+        let fillColor, holeType = null;
+
+        if (elementType === 6) fillColor = '#000000';                              // Island
+        else if (elementType === 5) fillColor = '#29FD2F';                         // Home Island
+        else if (elementType === 2) { fillColor = '#000000'; holeType = 'star'; }  // City
+        else if (elementType === 3) { fillColor = '#000000'; holeType = 'circle'; } // Harbor
+        else if (elementType === 4) { fillColor = '#29FD2F'; holeType = 'circle'; } // Home Harbor
+
+        this.drawRoundedTile(x, y, neighborMask, diagonalMask, fillColor, holeType);
       }
     }
     
@@ -225,7 +244,7 @@ class SvgTileRenderer {
         const [h, s, l] = colorData;
         const color = `hsl(${h * 360}, ${s * 100}%, ${l * 100}%)`;
         
-        if (elementType === 4) {
+        if (elementType === 2) {  // City
           this.renderTile(x, y, elementType, color);
         } else {
           this.renderCircle(x, y, 0.6, color);

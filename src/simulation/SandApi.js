@@ -274,9 +274,9 @@ export function initSand([x, y], v, [bx, by]) {
   const cellIndex = getIndex(x, y) / 4;
   trails[cellIndex] = 0;
 
-  if (v === 9) {
+  if (v === 7) {
     const existingElement = sands[cellIndex * 4];
-    setSand(x, y, 9, 0, 0, existingElement);
+    setSand(x, y, 7, 0, 0, existingElement);
     return;
   }
 
@@ -833,7 +833,7 @@ function handleShipMovement() {
   for (let y = 0; y < worldHeight; y++) {
     for (let x = 0; x < worldWidth; x++) {
       const index = getIndex(x, y);
-      if (sands[index] === 9) {
+      if (sands[index] === 7) {
         const cellIndex = index / 4;
         const cooldown = shipCooldowns.get(cellIndex) || 0;
         if (isNewKeyPress || cooldown <= 0) {
@@ -853,18 +853,18 @@ function handleShipMovement() {
       
       const destElement = sands[newIndex];
       const newCellIndex = newIndex / 4;
-      // Ships pass through air (0), harbor (5/6), or any cell with a trail overlay
-      // (trail cells in sands are element 10, always paired with trails[]>0, so no need to check element 10 separately)
-      if (destElement === 0 || destElement === 5 || destElement === 6 || trails[newCellIndex] > 0) {
+      // Ships pass through air (0), harbor (3/4), or any cell with a trail overlay
+      // (trail cells in sands are element 8, always paired with trails[]>0, so no need to check element 8 separately)
+      if (destElement === 0 || destElement === 2 || destElement === 3 || destElement === 4 || trails[newCellIndex] > 0) {
         // Arrive: write ship, store underlying element in RC
-        sands[newIndex] = 9;
+        sands[newIndex] = 7;
         sands[newIndex + 1] = 0;
         sands[newIndex + 2] = 0;
         sands[newIndex + 3] = destElement;
 
         // Depart: restore underlying element (air→trail for physics, harbor→harbor)
         const underlyingElement = sands[ship.index + 3];
-        sands[ship.index] = underlyingElement === 0 ? 10 : underlyingElement;
+        sands[ship.index] = underlyingElement === 0 ? 8 : underlyingElement;
         sands[ship.index + 1] = 0;
         sands[ship.index + 2] = 0;
         sands[ship.index + 3] = 0;

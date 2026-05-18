@@ -1,142 +1,102 @@
-import { decode } from "fast-png";
 import starterXMLs from "./blocks/starterblocks";
 import { globalState, MAX_ELEMENTS, useStore } from "./store";
 import { width, height, sands, randomData } from "./simulation/SandApi";
-import { worldScaleMap } from "./simulation-controls/WorldSizeButtons.js";
-import * as Sentry from "@sentry/nextjs";
 import BlocklyJS from "blockly/javascript";
 import { Xml } from "blockly/core";
 import { generateCode } from "./blocks/generator.js";
-import { useRef, useState } from "react";
 import { getRandomColorName } from "./utils/theme.js";
 
-const imageURLBase =
-  "https://storage.googleapis.com/sandspiel-studio/creations/";
+export async function loadPostFromServer(postId) {
+  const id = String(postId);
 
-export async function loadPostFromServer(postId, retrys = 0) {
-  let id = postId;
-  const idNumber = parseInt(id, 10);
-
-  // Only load the starter elements if no post is getting loaded
-  if (isNaN(idNumber) || id.length < 1) {
+  // No ID → reset to starter elements
+  if (!id || id.length < 1) {
     useStore.getState().setXmls(starterXMLs);
     useStore.setState({ expandedPostId: null });
-
-    const disabled = [];
-    for (let i = 0; i < 4; i++) {
-      disabled[i] = false;
-    }
-
-    for (let i = 4; i < MAX_ELEMENTS; i++) {
-      disabled[i] = true;
-    }
+    const disabled = starterXMLs.map((_, i) => i >= 9);
     useStore.setState({ disabled });
     loadIntoEditor();
     return;
   }
 
-  const startTime = Date.now();
-  const { loading } = useStore.getState();
-  if (!loading) {
-    useStore.setState({ curtainColor: "purple" /*getRandomColorName() */ });
+  useStore.setState({ loading: true, curtainColor: getRandomColorName(), expandedPostId: id });
+
+  // Fetch map data from local API
+  const res = await fetch(`/api/maps/${id}`);
+  if (!res.ok) {
+    console.error('Map not found:', id);
+    useStore.setState({ loading: false });
+    return;
   }
-  useStore.setState({ loading: true });
-  useStore.setState({ expandedPostId: idNumber });
-  // Skip database loading - just use default values
-  console.log("Skipping database load for id:", id);
-  
-  const worldScale = 1 / 2;
-  const worldWidth = Math.round(worldScale * width);
-  const worldHeight = Math.round(worldScale * width);
+  const mapData = await res.json();
 
-  // Store world dimensions in two places for performance reasons
-  useStore.getState().setWorldSize([worldWidth, worldHeight]);
-  globalState.worldWidth = worldWidth;
-  globalState.worldHeight = worldHeight;
+  const { worldWidth, worldHeight, sandsBase64, disabled } = mapData;
+  const mW = worldWidth  || 75;
+  const mH = worldHeight || 75;
 
-  useStore.getState().setWorldScale(worldScale);
+  // Set world dimensions
+  useStore.getState().setWorldSize([mW, mH]);
+  useStore.getState().setWorldScale(mW / width);
+  globalState.worldWidth  = mW;
+  globalState.worldHeight = mH;
+  useStore.setState({ initialWorldSize: mW, initialWorldScale: mW / width });
+
+  // Clear sands buffer
+  for (let i = 0; i < width * height * 4; i++) sands[i] = 0;
+
+  // Decode and write sand data (compact mW×mH → 300-wide sands buffer)
+  if (sandsBase64) {
+    const raw = Uint8Array.from(atob(sandsBase64), (c) => c.charCodeAt(0));
+    for (let y = 0; y < mH; y++) {
+      for (let x = 0; x < mW; x++) {
+        const src = (x + y * mW) * 4;
+        const dst = (x + y * width) * 4;  // width = 300 (full buffer stride)
+        sands[dst + 0] = raw[src + 0]; // element
+        sands[dst + 1] = raw[src + 1] || randomData(x, y); // RA
+        sands[dst + 2] = raw[src + 2]; // RB
+        sands[dst + 3] = raw[src + 3]; // RC
+      }
+    }
+  }
+
+  // Set elements — always use full starterXMLs (map uses indices 0-18)
+  useStore.getState().setXmls(starterXMLs.slice(0, MAX_ELEMENTS));
   useStore.setState({
-    initialWorldSize: worldWidth,
-    initialWorldScale: worldScale,
+    disabled: disabled || new Array(MAX_ELEMENTS).fill(false),
+    initialSelected: 9, // Water selected by default after loading a map
+    paused: false,
+    initialPaused: false,
+    size: 2,
   });
+  globalState.wraparoundEnabled = false;
 
-  useStore.setState({ paused: true });
-  useStore.setState({ initialPaused: false });
+  // Short delay so curtain is visible
+  await new Promise((r) => setTimeout(r, 300));
 
-  useStore.getState().setXmls(starterXMLs);
-
-  const disabled = [];
-  for (let i = 0; i < 4; i++) {
-    disabled[i] = false;
-  }
-  for (let i = 4; i < MAX_ELEMENTS; i++) {
-    disabled[i] = true;
-  }
-
-  useStore.setState({
-    initialSelected: 0,
-    disabled,
-    post: null,
-    size: 3,
-  });
-
-  globalState.wraparoundEnabled = true;
-
-  if (useStore.getState().expandedPostId !== idNumber) {
-    return "cancel";
-  }
-
-  useStore.setState({ postId: id });
-  
-  // Initialize with empty sand data
-  for (let i = 0; i < width * height * 4; i += 4) {
-    sands[i] = 0;
-    sands[i + 1] = randomData(i / 4 % width, Math.floor(i / 4 / width));
-    sands[i + 2] = 0;
-    sands[i + 3] = 0;
-  }
-
-  const nowTime = Date.now();
-  const elapsedTime = nowTime - startTime;
-  if (elapsedTime < 500) {
-    await new Promise((r) => setTimeout(r, 500 - elapsedTime));
-  }
-
-  useStore.setState({ initialSandsData: null });
-
-  await loadIntoEditor(idNumber);
+  loadIntoEditor(id);
   useStore.setState({ loading: false });
 }
 
-const loadIntoEditor = async (idNumber = null) => {
-  let ws = globalState.workspace;
+const loadIntoEditor = (id = null) => {
+  const ws = globalState.workspace;
+  if (!ws) return;
   BlocklyJS.init(ws);
 
   const { setSelected } = useStore.getState();
-  for (let i = useStore.getState().elements.length - 1; i >= 0; i--) {
+  const xmls = useStore.getState().xmls;
+
+  for (let i = xmls.length - 1; i >= 0; i--) {
+    if (useStore.getState().expandedPostId !== id) break;
     setSelected(i);
-
     ws.clear();
-
-    await new Promise((resolve) => {
-      if (useStore.getState().expandedPostId !== idNumber) {
-        return "cancel";
-      }
-      let cb = () => {
-        generateCode(i, ws);
-        ws.removeChangeListener(cb);
-        resolve();
-      };
-      ws.addChangeListener(cb);
-      let xml = useStore.getState().xmls[i];
-      let dom = Xml.textToDom(xml);
-      try {
-        Xml.domToWorkspace(dom, ws);
-      } catch (e) {
-        console.error(e);
-      }
-    });
+    try {
+      Xml.domToWorkspace(Xml.textToDom(xmls[i]), ws);
+    } catch (e) {
+      console.error('loadIntoEditor xml error element', i, e);
+    }
+    generateCode(i, ws);
   }
+
   setSelected(useStore.getState().initialSelected);
   useStore.setState({ paused: useStore.getState().initialPaused });
 };

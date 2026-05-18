@@ -13,6 +13,7 @@ import "../style/game.css";
 import "../style/post.css";
 import "../style/star.css";
 import "../style/browse.css";
+import "../style/dark.css";
 import "../Blockly/BlocklyComponent.css";
 const queryClient = new QueryClient();
 
@@ -36,6 +37,11 @@ const imageURLBase =
   "https://storage.googleapis.com/sandspiel-studio/creations/";
 
 function MyApp({ Component, pageProps }) {
+  useEffect(() => {
+    if (localStorage.getItem('darkMode') === '1') {
+      document.body.classList.add('dark');
+    }
+  }, []);
   const router = useRouter();
   const { id } = router.query;
 

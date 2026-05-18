@@ -1,0 +1,97 @@
+/* ── Dark mode ─────────────────────────────────────────────────────────── */
+body.dark {
+  background-color: #111111;
+  color: #ddd;
+}
+
+/* Buttons */
+body.dark button {
+  background-color: #1e1e1e;
+  border-color: #3a3a3a;
+  color: #ddd;
+}
+body.dark button:hover {
+  background-color: #2a2a2a;
+}
+body.dark button.selected {
+  background-color: #3a3a3a;
+  border-color: #6a6a6a;
+  color: #fff;
+}
+body.dark button.editor-toggle {
+  background-color: #4a4a4a;
+}
+
+/* Dropdowns */
+body.dark .Dropdown-control {
+  background-color: #1e1e1e;
+  border-color: #3a3a3a;
+  color: #ddd;
+}
+body.dark .Dropdown-menu {
+  background-color: #1e1e1e;
+  border-color: #3a3a3a;
+}
+body.dark .Dropdown-option {
+  color: #ddd;
+}
+body.dark .Dropdown-option:hover,
+body.dark .Dropdown-option.is-selected {
+  background-color: #2a2a2a;
+}
+
+/* Post cards */
+body.dark .post {
+  background-color: rgba(22, 22, 22, 0.88);
+}
+body.dark .post:not(.splash):hover {
+  background-color: rgba(35, 35, 35, 0.75);
+}
+body.dark .post.selected,
+body.dark .post:hover.selected {
+  background-color: rgba(22, 22, 22, 1);
+  box-shadow: 0 0 0 1px #888 inset;
+}
+
+/* Inputs */
+body.dark input[type="text"] {
+  background-color: #1e1e1e;
+  border: 1px solid #3a3a3a;
+  color: #ddd;
+}
+
+/* Blockly */
+body.dark .blocklySvg {
+  background-image: none;
+  background-color: #161616;
+}
+
+/* World / sim panel */
+body.dark #world {
+  background-image: none;
+  background-color: #0d0d0d;
+}
+
+/* Resize handle */
+body.dark .resizeHandle {
+  background: repeating-linear-gradient(
+    90deg, #444, #444 1px, #444 2px, #222 2px, #222 3px
+  );
+}
+
+/* Labels */
+body.dark label {
+  color: #ccc;
+}
+
+/* Loading curtain already uses theme colors — fine as-is */
+
+/* Browse page */
+body.dark .browse-page {
+  background-color: #111111;
+}
+
+/* Scrollbar */
+body.dark *::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.15);
+}

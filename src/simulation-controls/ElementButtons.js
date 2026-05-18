@@ -4,8 +4,8 @@ import { MAX_ELEMENTS, useStore } from "../store";
 import useSound from "use-sound";
 
 // Element indices matching starterblocks.js order
-const ELEM_SHIP = 9;
-const ELEM_TRAIL = 10;
+const ELEM_SHIP = 7;
+const ELEM_TRAIL = 8;
 
 const ElementButton = ({
   i,

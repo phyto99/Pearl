@@ -1,0 +1,1110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cellular Automata Philosophy — Sandspiel Ecosystem</title>
+<style>
+  :root {
+    --bg: #0a0e14;
+    --surface: #111820;
+    --border: #1e2d3d;
+    --accent: #00CED1;
+    --accent2: #FFD700;
+    --text: #cdd9e5;
+    --muted: #6b7d8f;
+    --green: #29FD2F;
+    --red: #DC143C;
+    --purple: #9400D3;
+    --orange: #FF8C00;
+    --ship: #0066FF;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.7;
+    padding: 0 0 80px;
+  }
+
+  /* ── HERO ── */
+  .hero {
+    background: linear-gradient(135deg, #0a1628 0%, #0d2137 50%, #0a1628 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 60px 40px 50px;
+    text-align: center;
+  }
+  .hero h1 {
+    font-size: 2.4rem;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -0.5px;
+    margin-bottom: 12px;
+  }
+  .hero h1 span { color: var(--accent); }
+  .hero p { color: var(--muted); font-size: 1.05rem; max-width: 640px; margin: 0 auto; }
+
+  /* ── LAYOUT ── */
+  .container { max-width: 1100px; margin: 0 auto; padding: 0 28px; }
+  section { margin-top: 60px; }
+  h2 {
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  h2::before {
+    content: '';
+    display: inline-block;
+    width: 4px;
+    height: 22px;
+    background: var(--accent);
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+  h3 { font-size: 1rem; font-weight: 600; color: var(--accent); margin-bottom: 6px; margin-top: 20px; }
+  p { color: var(--text); margin-bottom: 10px; }
+  .muted { color: var(--muted); font-size: 0.88rem; }
+
+  /* ── CARDS ── */
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 18px;
+    margin-top: 24px;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 22px 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    border-radius: 12px 12px 0 0;
+  }
+  .card.current::before { background: var(--accent); }
+  .card.rival1::before { background: var(--green); }
+  .card.rival2::before { background: var(--accent2); }
+  .card.rival3::before { background: var(--purple); }
+  .card.rival4::before { background: var(--orange); }
+  .card.rival5::before { background: var(--ship); }
+  .card .label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .card .title { font-size: 1.1rem; font-weight: 700; color: #fff; margin-bottom: 12px; }
+  .tag-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+  .tag {
+    font-size: 0.72rem;
+    padding: 2px 8px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    color: var(--muted);
+  }
+  .tag.pro { border-color: #1e4d2a; color: #4eca6e; background: #0d2115; }
+  .tag.con { border-color: #4d1e1e; color: #ca4e4e; background: #210d0d; }
+
+  /* ── DEMO CANVASES ── */
+  .demo-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-top: 20px;
+  }
+  .demo-row {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    margin-top: 16px;
+  }
+  .demo-unit { flex: 1; min-width: 200px; }
+  .demo-unit canvas {
+    display: block;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    width: 100%;
+    max-width: 260px;
+    image-rendering: pixelated;
+  }
+  .demo-unit .demo-label {
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-top: 8px;
+    text-align: center;
+  }
+
+  /* ── TROPHIC DIAGRAM ── */
+  .trophic {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    margin: 24px 0;
+  }
+  .trophic-level {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .creature {
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-align: center;
+    min-width: 100px;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  .arrow-down {
+    font-size: 1.4rem;
+    color: var(--muted);
+    line-height: 1;
+  }
+  .eats-label {
+    font-size: 0.7rem;
+    color: var(--muted);
+    margin: 0 4px;
+  }
+
+  /* ── LOOP SECTION ── */
+  .loop-diagram {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-top: 20px;
+    display: flex;
+    gap: 32px;
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+  .loop-canvas-wrap { flex-shrink: 0; }
+  .loop-canvas-wrap canvas {
+    display: block;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    image-rendering: pixelated;
+  }
+  .loop-text { flex: 1; min-width: 240px; }
+
+  /* ── PHILOSOPHY TABLE ── */
+  .phi-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    font-size: 0.88rem;
+  }
+  .phi-table th {
+    text-align: left;
+    padding: 10px 14px;
+    color: var(--muted);
+    font-weight: 600;
+    font-size: 0.75rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+  }
+  .phi-table td {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  .phi-table tr:last-child td { border-bottom: none; }
+  .phi-table tr:hover td { background: rgba(255,255,255,0.02); }
+  .score { font-weight: 700; }
+  .score.high { color: var(--green); }
+  .score.mid { color: var(--accent2); }
+  .score.low { color: var(--red); }
+
+  /* ── RECOMMENDATION ── */
+  .rec-box {
+    background: linear-gradient(135deg, #0d2137, #0d1f0d);
+    border: 1px solid #1e4d3a;
+    border-radius: 16px;
+    padding: 28px 32px;
+    margin-top: 28px;
+  }
+  .rec-box h3 { color: var(--green); font-size: 1.15rem; margin-bottom: 16px; margin-top: 0; }
+  .rec-steps { list-style: none; counter-reset: steps; }
+  .rec-steps li {
+    counter-increment: steps;
+    padding: 10px 0 10px 40px;
+    position: relative;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+  .rec-steps li:last-child { border-bottom: none; }
+  .rec-steps li::before {
+    content: counter(steps);
+    position: absolute;
+    left: 0;
+    width: 26px;
+    height: 26px;
+    background: var(--accent);
+    color: #000;
+    border-radius: 50%;
+    font-size: 0.8rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    top: 12px;
+  }
+  code {
+    font-family: 'Cascadia Code', 'Fira Code', monospace;
+    font-size: 0.85em;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 6px;
+    color: var(--accent);
+  }
+
+  /* ── SIGNAL DIAGRAM ── */
+  .signal-anim {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-top: 20px;
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+  .signal-anim canvas {
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    image-rendering: pixelated;
+    display: block;
+  }
+
+  /* ── FOOTNOTE ── */
+  .footer {
+    margin-top: 60px;
+    padding: 24px 28px;
+    border-top: 1px solid var(--border);
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.82rem;
+  }
+
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 1.6rem; }
+    .container { padding: 0 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>Cellular Automata <span>Philosophy</span></h1>
+  <p>What makes a good ecosystem simulation? A survey of design philosophies — from what your cells do now, to what they could become when ships start encircling fish.</p>
+</div>
+
+<div class="container">
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SECTION 1: CURRENT PHILOSOPHY -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<section>
+  <h2>What You Have Now: Local-Neighbor Lotka-Volterra</h2>
+  <p>Each cell is an autonomous agent. It knows nothing about the world except its <strong>immediate 4 neighbors</strong> and its own internal counter (RB). From these simple rules, population waves emerge.</p>
+
+  <div class="demo-box">
+    <div style="font-weight:600; color:#fff; margin-bottom:4px;">Live: Hunger-Driven Predator-Prey</div>
+    <p class="muted">Predator (cyan) eats prey (orange). Predator starves if hunger counter exceeds threshold.</p>
+    <div class="demo-row">
+      <div class="demo-unit">
+        <canvas id="lv-canvas" width="80" height="80" style="max-width:200px;"></canvas>
+        <div class="demo-label">Lotka-Volterra — local rules</div>
+      </div>
+      <div style="flex:2; min-width:240px;">
+        <h3>The Three Laws of Each Tick</h3>
+        <p><strong style="color:var(--accent);">① Predator:</strong> increment hunger. If hunger &gt; threshold → die into Air. Else try: eat neighbor prey (reset hunger), or clone into Air (1-in-40), or move into Air.</p>
+        <p><strong style="color:var(--orange);">② Prey:</strong> try to clone into Air (1-in-N), or move into Air. Only dies when eaten — never of old age.</p>
+        <p><strong style="color:var(--muted);">Key insight:</strong> Eating and reproduction are <em>decoupled</em>. Eating only resets hunger. Reproduction is a separate low-probability event. This prevents population explosions.</p>
+        <div class="tag-row">
+          <span class="tag pro">✓ Simple to implement</span>
+          <span class="tag pro">✓ Emergent waves</span>
+          <span class="tag pro">✓ Tunable thresholds</span>
+          <span class="tag con">✗ No spatial memory</span>
+          <span class="tag con">✗ No schooling</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Trophic chain -->
+  <div class="demo-box" style="margin-top:18px;">
+    <div style="font-weight:600; color:#fff; margin-bottom:14px;">Your Current Food Web</div>
+    <div class="trophic">
+      <div class="trophic-level">
+        <div class="creature" style="background:#00CED122;color:#00CED1;border-color:#00CED1;">🐋 Orca</div>
+      </div>
+      <div class="arrow-down">↓ <span class="eats-label">eats</span></div>
+      <div class="trophic-level">
+        <div class="creature" style="background:#9400D322;color:#c060ff;border-color:#9400D3;">🦭 Sea Lion</div>
+        <div class="creature" style="background:#FFD70022;color:#FFD700;border-color:#FFD700;">🦦 Sea Otter</div>
+      </div>
+      <div class="arrow-down">↓ <span class="eats-label">eats</span></div>
+      <div class="trophic-level">
+        <div class="creature" style="background:#FF00FF22;color:#FF88FF;border-color:#FF00FF;">🐙 Octopus</div>
+        <div class="creature" style="background:#8B451322;color:#c07040;border-color:#8B4513;">🐟 Cod</div>
+        <div class="creature" style="background:#7FFF0022;color:#7FFF00;border-color:#7FFF00;">🦑 Squid</div>
+      </div>
+      <div class="arrow-down">↓ <span class="eats-label">eats</span></div>
+      <div class="trophic-level">
+        <div class="creature" style="background:#FF8C0022;color:#FF8C00;border-color:#FF8C00;">🦔 Sea Urchin</div>
+        <div class="creature" style="background:#DC143C22;color:#DC143C;border-color:#DC143C;">🦀 Crab</div>
+      </div>
+    </div>
+    <p class="muted" style="text-align:center;margin-top:12px;">Cross-predation (Otter eats Urchin AND Crab) creates stabilising redundancy</p>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SECTION 2: RIVAL PHILOSOPHIES -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<section>
+  <h2>Five Rival Philosophies</h2>
+  <p>Each solves the same problem — emergent ecosystem stability — from a fundamentally different philosophical root.</p>
+
+  <div class="card-grid">
+
+    <div class="card rival1">
+      <div class="label">Philosophy 2</div>
+      <div class="title">Energy Budget (Metabolic)</div>
+      <p>Instead of a hunger timer, each cell holds a real <strong>energy value</strong>. Eating transfers energy. Reproduction costs energy. Death occurs at energy = 0. Movement costs a little energy per step.</p>
+      <p class="muted">Inspired by: Dynamic Energy Theory (Kooijman). Cells are thermodynamic machines.</p>
+      <div class="tag-row">
+        <span class="tag pro">✓ Physically realistic</span>
+        <span class="tag pro">✓ Natural stability</span>
+        <span class="tag con">✗ Needs more cell bytes</span>
+        <span class="tag con">✗ Harder to tune</span>
+      </div>
+    </div>
+
+    <div class="card rival2">
+      <div class="label">Philosophy 3</div>
+      <div class="title">Density-Counted Rules (Game of Life)</div>
+      <p>Like Conway's Game of Life: a cell lives, dies, or spawns based on counting how many neighbors of each type exist. No internal state — just a lookup table of (myType, neighborCounts) → nextType.</p>
+      <p class="muted">Inspired by: Conway, Brian's Brain, Wireworld. Pure discrete maths.</p>
+      <div class="tag-row">
+        <span class="tag pro">✓ Zero internal state</span>
+        <span class="tag pro">✓ Ultra-fast compute</span>
+        <span class="tag con">✗ Brittle thresholds</span>
+        <span class="tag con">✗ No memory</span>
+      </div>
+    </div>
+
+    <div class="card rival3">
+      <div class="label">Philosophy 4</div>
+      <div class="title">Reaction-Diffusion (Turing)</div>
+      <p>Two species interact: an <strong>activator</strong> (prey) auto-catalyses itself AND produces an <strong>inhibitor</strong> (predator signal). The inhibitor diffuses faster than the activator. Result: self-organising stripes and spots.</p>
+      <p class="muted">Inspired by: Turing 1952. The math behind leopard spots and fish stripes.</p>
+      <div class="tag-row">
+        <span class="tag pro">✓ Beautiful patterns</span>
+        <span class="tag pro">✓ Inherently stable</span>
+        <span class="tag con">✗ Continuous math in discrete grid</span>
+        <span class="tag con">✗ Poor for complex food webs</span>
+      </div>
+    </div>
+
+    <div class="card rival4">
+      <div class="label">Philosophy 5</div>
+      <div class="title">Signalling / Stigmergy</div>
+      <p>Animals leave <strong>chemical trails</strong> (pheromones) in cells they pass through. Others follow gradients toward food signals or away from predator signals. Behaviour is indirect — the environment mediates interaction.</p>
+      <p class="muted">Inspired by: Ant colony optimisation, slime moulds, Langton's Ant.</p>
+      <div class="tag-row">
+        <span class="tag pro">✓ Natural schooling</span>
+        <span class="tag pro">✓ Prey can sense danger</span>
+        <span class="tag con">✗ Trail cells needed</span>
+        <span class="tag con">✗ Decay logic required</span>
+      </div>
+    </div>
+
+    <div class="card rival5">
+      <div class="label">Philosophy 6</div>
+      <div class="title">Spatial Lottery / Patch Dynamics</div>
+      <p>Space is the scarce resource. Each empty cell is a "lottery ticket." Any adjacent reproducing organism can claim it with probability proportional to its reproductive rate. Predation removes organisms, freeing patches.</p>
+      <p class="muted">Inspired by: Hubbells Neutral Theory, Tilman's competition models. Ecological niche theory.</p>
+      <div class="tag-row">
+        <span class="tag pro">✓ Stable at any scale</span>
+        <span class="tag pro">✓ Coexistence is natural</span>
+        <span class="tag con">✗ Less "behaviour" per cell</span>
+        <span class="tag con">✗ Requires global lottery</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Comparison table -->
+  <div class="demo-box" style="overflow-x:auto; margin-top:28px;">
+    <div style="font-weight:600;color:#fff;margin-bottom:14px;">Comparison for Your System (ships + fish capture)</div>
+    <table class="phi-table">
+      <thead>
+        <tr>
+          <th>Philosophy</th>
+          <th>Stability</th>
+          <th>Behaviour richness</th>
+          <th>Loop-capture fit</th>
+          <th>Impl. cost</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Current: Local Lotka-Volterra</strong></td>
+          <td><span class="score mid">●●○</span></td>
+          <td><span class="score mid">●●○</span></td>
+          <td><span class="score high">●●●</span></td>
+          <td><span class="score high">low</span></td>
+        </tr>
+        <tr>
+          <td>Energy Budget</td>
+          <td><span class="score high">●●●</span></td>
+          <td><span class="score high">●●●</span></td>
+          <td><span class="score high">●●●</span></td>
+          <td><span class="score low">high</span></td>
+        </tr>
+        <tr>
+          <td>Density-Counted (GoL)</td>
+          <td><span class="score low">●○○</span></td>
+          <td><span class="score low">●○○</span></td>
+          <td><span class="score mid">●●○</span></td>
+          <td><span class="score high">low</span></td>
+        </tr>
+        <tr>
+          <td>Reaction-Diffusion</td>
+          <td><span class="score high">●●●</span></td>
+          <td><span class="score low">●○○</span></td>
+          <td><span class="score low">●○○</span></td>
+          <td><span class="score mid">med</span></td>
+        </tr>
+        <tr>
+          <td><strong>Signalling + Local LV (hybrid)</strong></td>
+          <td><span class="score high">●●●</span></td>
+          <td><span class="score high">●●●</span></td>
+          <td><span class="score high">●●●</span></td>
+          <td><span class="score mid">med</span></td>
+        </tr>
+        <tr>
+          <td>Spatial Lottery</td>
+          <td><span class="score high">●●●</span></td>
+          <td><span class="score low">●○○</span></td>
+          <td><span class="score mid">●●○</span></td>
+          <td><span class="score mid">med</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SECTION 3: THE LOOP-CAPTURE MECHANIC -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<section>
+  <h2>The Loop-Capture Problem</h2>
+  <p>Ships draw trails. When a trail closes a loop, all fish <em>inside</em> the loop are captured (deleted). This is topologically identical to the <strong>Jordan Curve Theorem</strong>: a closed curve divides the plane into inside and outside.</p>
+
+  <div class="loop-diagram">
+    <div class="loop-canvas-wrap">
+      <canvas id="loop-canvas" width="200" height="200"></canvas>
+      <div class="demo-label" style="margin-top:8px;">Ship closes loop → fish captured</div>
+    </div>
+    <div class="loop-text">
+      <h3>How the Jordan Curve Test Works in a Grid</h3>
+      <p><strong>Ray Casting:</strong> From any fish cell, cast a ray in any fixed direction (e.g. →right). Count how many Trail cells it crosses. If the count is <em>odd</em>, the fish is inside the loop.</p>
+      <p><strong>Flood Fill:</strong> From every edge cell, flood-fill Air outward. Any Air not reached = inside. Capture all creatures inside.</p>
+      <p><strong>Signal Diffusion:</strong> Trail cells emit a "barrier signal" into adjacent Air. Fish that can't reach a non-barrier edge within N steps are captured. Most natural for CA.</p>
+      <div class="tag-row" style="margin-top:16px;">
+        <span class="tag pro">Ray Cast: fast, O(n) per fish</span>
+        <span class="tag pro">Flood Fill: exact, works for any loop shape</span>
+        <span class="tag pro">Signal: most CA-native, fish can react</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Live animation: signal diffusion -->
+  <div class="signal-anim">
+    <div>
+      <canvas id="signal-canvas" width="180" height="180"></canvas>
+      <div class="demo-label" style="margin-top:8px;">Signal diffusion from trail boundary</div>
+    </div>
+    <div style="flex:1;min-width:240px;">
+      <h3>Signal Diffusion — Most CA-Natural</h3>
+      <p>Trail cells emit a numeric signal into the "outside" Air each tick. The signal propagates outward like a ripple. Any Air cell that <em>never receives the signal</em> is inside the closed loop.</p>
+      <p>Fish inside get no signal → after N ticks → captured.</p>
+      <p>Fish outside do get signal → safe. They can also <em>flee</em> away from low-signal zones — pure CA instinct.</p>
+      <h3 style="margin-top:18px;">What This Means for Your Fish Behaviour</h3>
+      <p>Fish can check: <em>"is my RA (signal strength) above zero?"</em> If yes → move normally. If no → I'm trapped. This requires <strong>zero global computation</strong> — each cell is self-aware of its enclosure state.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SECTION 4: BEST CA PHILOSOPHY FOR LOOP SYSTEM -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<section>
+  <h2>Recommended Philosophy: Hybrid Signalling + Lotka-Volterra</h2>
+  <p>Keep your current Lotka-Volterra hunger model for predator-prey dynamics. Layer on top a <strong>boundary signal</strong> for the loop mechanic. The two systems operate independently and compose cleanly.</p>
+
+  <div class="rec-box">
+    <h3>Implementation Architecture</h3>
+    <ol class="rec-steps">
+      <li>
+        <strong>Trail cells are boundary emitters.</strong> Each Trail cell writes a signal value into a separate <code>trails[]</code> array (you already have this). Signal value = 255 = "outside marker."
+      </li>
+      <li>
+        <strong>Air diffuses the signal inward.</strong> Each tick, Air cells check neighbors. If any neighbor has a signal &gt; 0, copy <code>signal = neighbor_signal - 1</code> into self. This creates a gradient from Trail outward. Air reachable from edges gets high signal; Air trapped inside a closed loop gets zero signal.
+      </li>
+      <li>
+        <strong>Fish read their cell's signal via RA.</strong> When a ship loop closes, inside fish have RA = 0 in their Air neighborhood. After N ticks without signal → <code>change_into HERE Air</code> (captured). Or: a separate "capture sweep" from the ship system.
+      </li>
+      <li>
+        <strong>Prey can flee.</strong> Add a check: if right-neighbor signal &gt; my signal, move right (move toward stronger signal = toward open water). This is a pure CA rule — no global state, no flood-fill.
+      </li>
+      <li>
+        <strong>Predators are unaffected.</strong> Orca/Sea Lion etc. ignore the signal entirely. They still operate on hunger + prey proximity. The signal layer is purely for the ship-loop mechanic.
+      </li>
+    </ol>
+  </div>
+
+  <!-- Mini philosophy statement -->
+  <div class="demo-box" style="margin-top:24px;">
+    <div style="font-weight:600;color:#fff;margin-bottom:16px;">The Core Philosophical Statement</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;flex-wrap:wrap;">
+      <div style="text-align:center;padding:16px;background:#0a1628;border-radius:8px;border:1px solid var(--border);">
+        <div style="font-size:1.8rem;margin-bottom:8px;">🌊</div>
+        <div style="font-weight:700;color:var(--accent);margin-bottom:6px;">Local Causation</div>
+        <div class="muted">Every decision a cell makes is based only on its immediate neighbors. No cell has global knowledge. The ecosystem emerges from pure locality.</div>
+      </div>
+      <div style="text-align:center;padding:16px;background:#0a1628;border-radius:8px;border:1px solid var(--border);">
+        <div style="font-size:1.8rem;margin-bottom:8px;">⏱️</div>
+        <div style="font-weight:700;color:var(--accent2);margin-bottom:6px;">Time as Resource</div>
+        <div class="muted">The hunger counter is time-as-scarcity. Predators don't just need prey — they need prey soon enough. This drives hunting urgency without global scheduling.</div>
+      </div>
+      <div style="text-align:center;padding:16px;background:#0a1628;border-radius:8px;border:1px solid var(--border);">
+        <div style="font-size:1.8rem;margin-bottom:8px;">📡</div>
+        <div style="font-weight:700;color:var(--green);margin-bottom:6px;">Signal as Geometry</div>
+        <div class="muted">The trail signal converts a geometric problem (inside/outside a loop) into a local CA question (is my signal zero?). Topology becomes biology.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SECTION 5: LIVE COMPARISON -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<section>
+  <h2>Live: Three Prey Behaviours Under Loop Capture</h2>
+  <div class="demo-row">
+    <div class="demo-unit">
+      <canvas id="passive-canvas" width="80" height="80" style="max-width:200px;"></canvas>
+      <div class="demo-label">Passive prey — no escape</div>
+    </div>
+    <div class="demo-unit">
+      <canvas id="random-canvas" width="80" height="80" style="max-width:200px;"></canvas>
+      <div class="demo-label">Random walk — some escape</div>
+    </div>
+    <div class="demo-unit">
+      <canvas id="signal-flee-canvas" width="80" height="80" style="max-width:200px;"></canvas>
+      <div class="demo-label">Signal-following — flee toward open water</div>
+    </div>
+  </div>
+  <p class="muted" style="margin-top:12px;text-align:center;">Blue border = closing ship trail. Orange = prey. Captured prey fade to dark.</p>
+</section>
+
+</div><!-- /container -->
+
+<div class="footer">
+  Sandspiel Studio — Cellular Automata Design Reference · Generated 2026-05-17
+</div>
+
+<!-- ════════════════════════ SCRIPTS ════════════════════════ -->
+<script>
+// ── Utility ──────────────────────────────────────────────
+function randInt(n) { return Math.floor(Math.random() * n); }
+function pick(arr) { return arr[randInt(arr.length)]; }
+
+// ── 1. Lotka-Volterra Demo ────────────────────────────────
+(function() {
+  const canvas = document.getElementById('lv-canvas');
+  const ctx = canvas.getContext('2d');
+  const W = 40, H = 40;
+  const CELL = 5;
+  canvas.width = W * CELL;
+  canvas.height = H * CELL;
+
+  const AIR = 0, PREY = 1, PRED = 2;
+  const THRESHOLD = 18;
+  let grid = new Uint8Array(W * H);
+  let rb = new Uint8Array(W * H); // hunger counter
+
+  // Seed
+  for (let i = 0; i < W * H; i++) {
+    const r = Math.random();
+    if (r < 0.08) { grid[i] = PRED; rb[i] = 0; }
+    else if (r < 0.30) { grid[i] = PREY; }
+  }
+
+  function idx(x, y) { return ((y + H) % H) * W + ((x + W) % W); }
+
+  function step() {
+    const next = new Uint8Array(grid);
+    const nextrb = new Uint8Array(rb);
+    const dirs = [[-1,0],[1,0],[0,-1],[0,1]];
+
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const i = y * W + x;
+        if (grid[i] === PRED) {
+          nextrb[i]++;
+          if (nextrb[i] > THRESHOLD) {
+            next[i] = AIR; nextrb[i] = 0; continue;
+          }
+          const shuffled = dirs.slice().sort(() => Math.random()-0.5);
+          let ate = false, reproduced = false, moved = false;
+          for (const [dx, dy] of shuffled) {
+            const j = idx(x+dx, y+dy);
+            if (!ate && grid[j] === PREY) {
+              next[j] = AIR; nextrb[i] = 0; ate = true;
+            } else if (!reproduced && !ate && Math.random() < 1/40 && grid[j] === AIR) {
+              next[j] = PRED; nextrb[j] = 0; reproduced = true;
+            } else if (!moved && !ate && !reproduced && grid[j] === AIR) {
+              next[j] = PRED; nextrb[j] = nextrb[i];
+              next[i] = AIR; nextrb[i] = 0; moved = true;
+            }
+            if (ate) break;
+          }
+        } else if (grid[i] === PREY) {
+          const shuffled = dirs.slice().sort(() => Math.random()-0.5);
+          for (const [dx, dy] of shuffled) {
+            const j = idx(x+dx, y+dy);
+            if (Math.random() < 1/12 && grid[j] === AIR) {
+              next[j] = PREY; break;
+            } else if (grid[j] === AIR) {
+              next[j] = PREY; next[i] = AIR; break;
+            }
+          }
+        }
+      }
+    }
+    grid.set(next); rb.set(nextrb);
+  }
+
+  const COLORS = ['#0a1628', '#FF8C00', '#00CED1'];
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const g = grid[y * W + x];
+        if (g === AIR) continue;
+        ctx.fillStyle = COLORS[g];
+        ctx.fillRect(x * CELL, y * CELL, CELL, CELL);
+      }
+    }
+  }
+
+  setInterval(() => { step(); draw(); }, 80);
+  draw();
+})();
+
+// ── 2. Loop Capture Animation ──────────────────────────────
+(function() {
+  const canvas = document.getElementById('loop-canvas');
+  const ctx = canvas.getContext('2d');
+  const W = 40, H = 40;
+  const CELL = 5;
+  canvas.width = W * CELL;
+  canvas.height = H * CELL;
+
+  let frame = 0;
+  let fishes = [];
+  for (let i = 0; i < 25; i++) {
+    fishes.push({ x: 10 + randInt(20), y: 10 + randInt(20), captured: false, alpha: 1 });
+  }
+
+  // Pre-computed ship trail that closes a loop (roughly circular)
+  function getTrail(t) {
+    const trail = new Set();
+    const cx = 20, cy = 20, steps = Math.min(t * 2, 240);
+    for (let i = 0; i < steps; i++) {
+      const ang = (i / 240) * Math.PI * 2 - Math.PI/2;
+      const r = 13;
+      const tx = Math.round(cx + Math.cos(ang) * r);
+      const ty = Math.round(cy + Math.sin(ang) * r);
+      trail.add(ty * W + tx);
+    }
+    return trail;
+  }
+
+  function isInsideLoop(fx, fy, trail) {
+    // Ray cast rightward
+    let count = 0;
+    for (let x = fx + 1; x < W; x++) {
+      if (trail.has(fy * W + x)) count++;
+    }
+    return count % 2 === 1;
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const loopClosed = frame > 120;
+    const trail = getTrail(frame);
+
+    // Background
+    ctx.fillStyle = '#0a1628';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Trail
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        if (trail.has(y * W + x)) {
+          ctx.fillStyle = '#0066FF';
+          ctx.fillRect(x * CELL, y * CELL, CELL, CELL);
+        }
+      }
+    }
+
+    // Capture zone overlay
+    if (loopClosed) {
+      ctx.fillStyle = 'rgba(0,102,255,0.08)';
+      for (let y = 0; y < H; y++) {
+        for (let x = 0; x < W; x++) {
+          if (!trail.has(y * W + x) && isInsideLoop(x, y, trail)) {
+            ctx.fillRect(x * CELL, y * CELL, CELL, CELL);
+          }
+        }
+      }
+    }
+
+    // Fish
+    for (const f of fishes) {
+      if (loopClosed && !f.captured && isInsideLoop(Math.round(f.x), Math.round(f.y), trail)) {
+        f.captured = true;
+      }
+      if (f.captured) {
+        f.alpha = Math.max(0, f.alpha - 0.025);
+      }
+      ctx.globalAlpha = f.alpha;
+      ctx.fillStyle = '#FF8C00';
+      ctx.beginPath();
+      ctx.arc(f.x * CELL + CELL/2, f.y * CELL + CELL/2, CELL * 0.55, 0, Math.PI*2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+
+      // Random walk
+      if (!f.captured && Math.random() < 0.15) {
+        f.x = Math.max(1, Math.min(W-2, f.x + pick([-1,0,0,1])));
+        f.y = Math.max(1, Math.min(H-2, f.y + pick([-1,0,0,1])));
+      }
+    }
+
+    // Ship dot
+    if (frame <= 120) {
+      const ang = (frame * 2 / 240) * Math.PI * 2 - Math.PI/2;
+      const r = 13, cx = 20, cy = 20;
+      const sx = cx + Math.cos(ang) * r;
+      const sy = cy + Math.sin(ang) * r;
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(sx * CELL + CELL/2, sy * CELL + CELL/2, CELL * 0.8, 0, Math.PI*2);
+      ctx.fill();
+    }
+
+    // Label
+    ctx.fillStyle = loopClosed ? '#DC143C' : '#00CED1';
+    ctx.font = '10px system-ui';
+    ctx.fillText(loopClosed ? 'LOOP CLOSED — CAPTURING' : 'Ship drawing loop...', 4, canvas.height - 6);
+
+    frame++;
+    if (frame > 220) {
+      frame = 0;
+      fishes = [];
+      for (let i = 0; i < 25; i++) {
+        fishes.push({ x: 10 + randInt(20), y: 10 + randInt(20), captured: false, alpha: 1 });
+      }
+    }
+  }
+
+  setInterval(draw, 60);
+})();
+
+// ── 3. Signal Diffusion Demo ──────────────────────────────
+(function() {
+  const canvas = document.getElementById('signal-canvas');
+  const ctx = canvas.getContext('2d');
+  const W = 36, H = 36;
+  const CELL = 5;
+  canvas.width = W * CELL;
+  canvas.height = H * CELL;
+
+  let signal = new Float32Array(W * H);
+  let trail = new Uint8Array(W * H);
+
+  // Draw a closed loop trail
+  const cx = 18, cy = 18, r = 11;
+  for (let a = 0; a < 360; a++) {
+    const rad = a * Math.PI / 180;
+    const tx = Math.round(cx + Math.cos(rad) * r);
+    const ty = Math.round(cy + Math.sin(rad) * r);
+    if (tx >= 0 && tx < W && ty >= 0 && ty < H) {
+      trail[ty * W + tx] = 1;
+    }
+  }
+
+  // Seed outside signal from edges
+  for (let x = 0; x < W; x++) { signal[x] = 255; signal[(H-1)*W+x] = 255; }
+  for (let y = 0; y < H; y++) { signal[y*W] = 255; signal[y*W+W-1] = 255; }
+
+  function step() {
+    const next = new Float32Array(signal);
+    const dirs = [[-1,0],[1,0],[0,-1],[0,1]];
+    for (let y = 1; y < H-1; y++) {
+      for (let x = 1; x < W-1; x++) {
+        const i = y * W + x;
+        if (trail[i]) { next[i] = 0; continue; }
+        let maxSig = 0;
+        for (const [dx, dy] of dirs) {
+          const j = (y+dy)*W+(x+dx);
+          if (signal[j] > maxSig) maxSig = signal[j];
+        }
+        next[i] = Math.max(next[i], maxSig * 0.92);
+      }
+    }
+    signal.set(next);
+  }
+
+  // Pre-run many steps
+  for (let i = 0; i < 80; i++) step();
+
+  let tick = 0;
+  function draw() {
+    step();
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const i = y * W + x;
+        if (trail[i]) {
+          ctx.fillStyle = '#0066FF';
+        } else {
+          const s = signal[i] / 255;
+          // Green = high signal (outside/safe), red = low (inside/trapped)
+          const r = Math.round(s * 0 + (1-s) * 180);
+          const g = Math.round(s * 130 + (1-s) * 20);
+          const b = Math.round(s * 80 + (1-s) * 20);
+          ctx.fillStyle = `rgb(${r},${g},${b})`;
+        }
+        ctx.fillRect(x * CELL, y * CELL, CELL, CELL);
+      }
+    }
+    // Animate fish inside
+    const fishX = cx + Math.round(Math.cos(tick * 0.05) * 4);
+    const fishY = cy + Math.round(Math.sin(tick * 0.07) * 3);
+    const fi = fishY * W + fishX;
+    const sig = signal[fi];
+    ctx.fillStyle = sig < 10 ? '#DC143C' : '#FF8C00';
+    ctx.beginPath();
+    ctx.arc(fishX * CELL + CELL/2, fishY * CELL + CELL/2, CELL * 0.7, 0, Math.PI*2);
+    ctx.fill();
+    tick++;
+  }
+
+  setInterval(draw, 50);
+})();
+
+// ── 4. Three Prey Behaviour Demos ─────────────────────────
+function makeBehaviourDemo(canvasId, mode) {
+  const canvas = document.getElementById(canvasId);
+  const ctx = canvas.getContext('2d');
+  const W = 40, H = 40;
+  const CELL = 5;
+  canvas.width = W * CELL;
+  canvas.height = H * CELL;
+
+  // Rectangular closing loop
+  let loopProgress = 0; // 0..1 = drawing, 1 = closed
+  let fish = [];
+  for (let i = 0; i < 16; i++) {
+    fish.push({ x: 12 + randInt(16), y: 12 + randInt(16), captured: false, alpha: 1 });
+  }
+
+  const LX1=8, LY1=8, LX2=32, LY2=32;
+  const perimeter = 2*(LX2-LX1) + 2*(LY2-LY1);
+
+  function getTrailSet(prog) {
+    const s = new Set();
+    const total = Math.round(prog * perimeter);
+    let drawn = 0;
+    // Top edge
+    for (let x = LX1; x <= LX2 && drawn < total; x++, drawn++) s.add(LY1*W+x);
+    // Right edge
+    for (let y = LY1+1; y <= LY2 && drawn < total; y++, drawn++) s.add(y*W+LX2);
+    // Bottom edge
+    for (let x = LX2-1; x >= LX1 && drawn < total; x--, drawn++) s.add(LY2*W+x);
+    // Left edge
+    for (let y = LY2-1; y >= LY1+1 && drawn < total; y--, drawn++) s.add(y*W+LX1);
+    return s;
+  }
+
+  function isInside(fx, fy, trail) {
+    let count = 0;
+    for (let x = fx+1; x < W; x++) if (trail.has(fy*W+x)) count++;
+    return count % 2 === 1;
+  }
+
+  // Precompute outside signal for signal-flee mode
+  function computeSignal(trail) {
+    const sig = new Float32Array(W * H);
+    for (let x = 0; x < W; x++) { sig[x] = 255; sig[(H-1)*W+x] = 255; }
+    for (let y = 0; y < H; y++) { sig[y*W] = 255; sig[y*W+W-1] = 255; }
+    for (let iter = 0; iter < 60; iter++) {
+      const next = new Float32Array(sig);
+      for (let y = 1; y < H-1; y++) {
+        for (let x = 1; x < W-1; x++) {
+          const i = y*W+x;
+          if (trail.has(i)) { next[i] = 0; continue; }
+          let mx = 0;
+          for (const [dx,dy] of [[-1,0],[1,0],[0,-1],[0,1]]) {
+            const j = (y+dy)*W+(x+dx);
+            if (sig[j] > mx) mx = sig[j];
+          }
+          next[i] = Math.max(next[i], mx * 0.93);
+        }
+      }
+      sig.set(next);
+    }
+    return sig;
+  }
+
+  let signalMap = null;
+  let tick = 0;
+
+  function step() {
+    loopProgress = Math.min(1, loopProgress + 0.008);
+    const closed = loopProgress >= 1;
+    const trail = getTrailSet(loopProgress);
+    if (closed && !signalMap) signalMap = computeSignal(trail);
+
+    for (const f of fish) {
+      if (closed && !f.captured && isInside(Math.round(f.x), Math.round(f.y), trail)) {
+        if (mode === 'passive') { f.captured = true; }
+      }
+      if (f.captured) { f.alpha = Math.max(0, f.alpha - 0.02); continue; }
+
+      if (mode === 'passive') {
+        // Do nothing
+      } else if (mode === 'random') {
+        if (Math.random() < 0.25) {
+          const nx = f.x + pick([-1,0,1]);
+          const ny = f.y + pick([-1,0,1]);
+          if (nx >= 1 && nx < W-1 && ny >= 1 && ny < H-1 && !trail.has(Math.round(ny)*W+Math.round(nx))) {
+            f.x = nx; f.y = ny;
+          }
+        }
+        // Mark captured if inside and random walk doesn't escape in time
+        if (closed && isInside(Math.round(f.x), Math.round(f.y), trail) && tick > 80) {
+          f.captured = true;
+        }
+      } else if (mode === 'signal') {
+        // Move toward highest-signal neighbor
+        if (signalMap && Math.random() < 0.4) {
+          const dirs = [[-1,0],[1,0],[0,-1],[0,1],[0,0]];
+          let bestSig = signalMap[Math.round(f.y)*W+Math.round(f.x)];
+          let bestDx = 0, bestDy = 0;
+          for (const [dx,dy] of dirs) {
+            const nx = Math.round(f.x)+dx, ny = Math.round(f.y)+dy;
+            if (nx < 0 || nx >= W || ny < 0 || ny >= H) continue;
+            if (trail.has(ny*W+nx)) continue;
+            if (signalMap[ny*W+nx] > bestSig) {
+              bestSig = signalMap[ny*W+nx]; bestDx = dx; bestDy = dy;
+            }
+          }
+          f.x = Math.max(1, Math.min(W-2, f.x + bestDx));
+          f.y = Math.max(1, Math.min(H-2, f.y + bestDy));
+        }
+        if (closed && signalMap && signalMap[Math.round(f.y)*W+Math.round(f.x)] < 5 && tick > 100) {
+          f.captured = true;
+        }
+      }
+    }
+    tick++;
+
+    if (tick > 200) {
+      tick = 0; loopProgress = 0; signalMap = null;
+      fish = [];
+      for (let i = 0; i < 16; i++) {
+        fish.push({ x: 12 + randInt(16), y: 12 + randInt(16), captured: false, alpha: 1 });
+      }
+    }
+  }
+
+  function draw() {
+    const closed = loopProgress >= 1;
+    const trail = getTrailSet(loopProgress);
+
+    ctx.fillStyle = '#0a1628';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Signal gradient (signal mode only)
+    if (mode === 'signal' && signalMap) {
+      for (let y = 0; y < H; y++) {
+        for (let x = 0; x < W; x++) {
+          if (trail.has(y*W+x)) continue;
+          const s = signalMap[y*W+x] / 255;
+          ctx.fillStyle = `rgba(0,130,80,${s * 0.25})`;
+          ctx.fillRect(x*CELL, y*CELL, CELL, CELL);
+        }
+      }
+    }
+
+    // Trail
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        if (trail.has(y*W+x)) {
+          ctx.fillStyle = closed ? '#DC143C' : '#0066FF';
+          ctx.fillRect(x*CELL, y*CELL, CELL, CELL);
+        }
+      }
+    }
+
+    // Fish
+    for (const f of fish) {
+      ctx.globalAlpha = f.alpha;
+      ctx.fillStyle = f.captured ? '#555' : '#FF8C00';
+      ctx.beginPath();
+      ctx.arc(f.x*CELL+CELL/2, f.y*CELL+CELL/2, CELL*0.55, 0, Math.PI*2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  setInterval(() => { step(); draw(); }, 50);
+}
+
+makeBehaviourDemo('passive-canvas', 'passive');
+makeBehaviourDemo('random-canvas', 'random');
+makeBehaviourDemo('signal-flee-canvas', 'signal');
+</script>
+</body>
+</html>

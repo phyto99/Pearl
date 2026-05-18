@@ -18,10 +18,11 @@ import {
 import { sands, trails, width, height, tick, initSand, pushUndo } from "./SandApi";
 
 // Element indices (must match starterblocks.js order)
-const ELEM_SHIP = 9;
-const ELEM_TRAIL = 10;
-const ELEM_HARBOR = 5;
-const ELEM_HOME_HARBOR = 6;
+const ELEM_SHIP = 7;
+const ELEM_TRAIL = 8;
+const ELEM_CITY = 2;
+const ELEM_HARBOR = 3;
+const ELEM_HOME_HARBOR = 4;
 import { pointsAlongLine } from "../utils/utils";
 import LoadingCurtain from "../pages/loadingCurtain.js";
 let dpi = 4;
@@ -365,10 +366,10 @@ const Sand = () => {
           }}
           onClick={(e) => {
             play();
-            setQuery({ edit: playMode ? 1 : undefined });
+            setQuery({ edit: playMode ? true : false });
           }}
         >
-          {playMode ? "<-  Open Editor " : "-> Close Editor"}
+          {playMode ? "Close Gallery ->" : "<- Open Gallery"}
         </button>
       )}
       <WrappedElementButtons

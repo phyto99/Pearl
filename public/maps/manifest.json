@@ -1,0 +1,50 @@
+[
+  {
+    "id": "map-001",
+    "title": "Open Ocean",
+    "description": "Balanced Lotka-Volterra — maximum open space, even predator-prey mix. LV population waves travel freely across the whole world.",
+    "philosophy": "Local Lotka-Volterra",
+    "createdAt": "2026-05-17T00:00:00Z",
+    "thumbnail": "/maps/thumbnails/map-001.png"
+  },
+  {
+    "id": "map-002",
+    "title": "Archipelago",
+    "description": "Energy Budget — prey cluster near island coasts (energy hotspots). Predators patrol open water between land. Distance from land = starvation risk.",
+    "philosophy": "Energy Budget",
+    "createdAt": "2026-05-17T00:00:00Z",
+    "thumbnail": "/maps/thumbnails/map-002.png"
+  },
+  {
+    "id": "map-003",
+    "title": "Turing Stripes",
+    "description": "Reaction-Diffusion — Crab (activator) vs Octopus (inhibitor) in alternating bands. Inhibitor diffuses faster than activator → Turing instability → self-organising stripes persist.",
+    "philosophy": "Reaction-Diffusion",
+    "createdAt": "2026-05-17T00:00:00Z",
+    "thumbnail": "/maps/thumbnails/map-003.png"
+  },
+  {
+    "id": "map-004",
+    "title": "Patch Dynamics",
+    "description": "Spatial Lottery — isolated water pockets divided by island chains. Each pocket runs an independent ecosystem. Extinction in one patch is offset by adjacent pockets. No single predator can sweep the whole world.",
+    "philosophy": "Spatial Lottery",
+    "createdAt": "2026-05-17T00:00:00Z",
+    "thumbnail": "/maps/thumbnails/map-004.png"
+  },
+  {
+    "id": "map-005",
+    "title": "Harbor Routes",
+    "description": "Signalling / Stigmergy — island chains form triangular harbor corridors. Prey concentrate in lanes. Predators hunt the corridors. Ship trails naturally follow the same routes, making loop-capture topologically clean.",
+    "philosophy": "Signalling & Stigmergy",
+    "createdAt": "2026-05-17T00:00:00Z",
+    "thumbnail": "/maps/thumbnails/map-005.png"
+  },
+  {
+    "id": "map-006",
+    "title": "GoL Clusters",
+    "description": "Density-Counted / Game of Life — prey in dense 5×5 blocks, predators at block boundaries. Local neighbor count drives reproduction and survival. Cluster geometry determines ecosystem fate.",
+    "philosophy": "Density-Counted (GoL)",
+    "createdAt": "2026-05-17T00:00:00Z",
+    "thumbnail": "/maps/thumbnails/map-006.png"
+  }
+]
