@@ -4,7 +4,7 @@ import { deriveColor, deriveName } from "./blocks/generator";
 import { getRandomColorName } from "./utils/theme.js";
 let bufferXMLs = starterXMLs;
 
-export const MAX_ELEMENTS = 15;
+export const MAX_ELEMENTS = 19;
 
 let useStore = create((set, get) => ({
   // BROWSE
@@ -60,11 +60,12 @@ let useStore = create((set, get) => ({
   resetCamera: () => set(() => ({ cameraZoom: 1, cameraX: 0, cameraY: 0 })),
 
   // EDITOR + PLAYGROUND
-  xmls: starterXMLs.slice(0, 11), // Initialize with first 11 starter elements (including ship and trail)
-  disabled: [false, false, false, false, false, false, false, false, false, false, false, ...Array(MAX_ELEMENTS - 11).fill(true)],
-  elements: starterXMLs.slice(0, 11).map((x) => deriveName(x)), // Derive names from XML
-  colors: starterXMLs.slice(0, 11).map((x) => deriveColor(x)), // Derive colors from XML
-  color2s: starterXMLs.slice(0, 11).map((x) => deriveColor(x, 2)), // Derive secondary colors from XML
+  xmls: starterXMLs.slice(0, 11), // Air Wall City Harbor HomeHarbor HomeIsland Island Ship Trail Water Sand
+  // Indices 0-8 enabled (Air–Trail); 9=Water and 10=Sand disabled (appear after Island via +); 11-18 marine creatures disabled
+  disabled: [false, false, false, false, false, false, false, false, false, true, true, ...Array(MAX_ELEMENTS - 11).fill(true)],
+  elements: starterXMLs.slice(0, MAX_ELEMENTS).map((x) => deriveName(x)),
+  colors: starterXMLs.slice(0, MAX_ELEMENTS).map((x) => deriveColor(x)),
+  color2s: starterXMLs.slice(0, MAX_ELEMENTS).map((x) => deriveColor(x, 2)),
   deleteSelectedElement: () =>
     set(() => {
       let { disabled, selectedElement, elements } = get();
@@ -87,7 +88,7 @@ let useStore = create((set, get) => ({
 
       if (xmls.length >= MAX_ELEMENTS && disabled.length == 0) return;
 
-      for (var i = 0; i < 16; i++) {
+      for (var i = 0; i < MAX_ELEMENTS; i++) {
         if (!elements[i] || disabled[i]) {
           disabled[i] = false;
           xmls[i] = xmls[i] ?? bufferXMLs[i] ?? generatePlaceholder(i);
@@ -102,8 +103,14 @@ let useStore = create((set, get) => ({
   setXmls: (xmls) =>
     set(() => {
       xmls = xmls.filter((xml) => xml !== null);
-      let colors = xmls.map((x) => deriveColor(x));
-      let color2s = xmls.map((x) => deriveColor(x, 2));
+      // Always produce MAX_ELEMENTS color entries — use starterXMLs as fallback for
+      // missing indices so disabled/not-yet-enabled elements have correct colors.
+      let colors = Array.from({ length: MAX_ELEMENTS }, (_, i) =>
+        deriveColor(xmls[i] ?? bufferXMLs[i])
+      );
+      let color2s = Array.from({ length: MAX_ELEMENTS }, (_, i) =>
+        deriveColor(xmls[i] ?? bufferXMLs[i], 2)
+      );
       let elements = xmls.map((x) => deriveName(x));
       return { xmls, colors, color2s, elements };
     }),

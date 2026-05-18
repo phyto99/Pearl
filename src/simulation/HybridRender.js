@@ -2,21 +2,33 @@ import React, { useRef, useEffect, useState } from 'react';
 import { width, height, sands, getIndex } from './SandApi';
 import useStore from '../store';
 
+// Interpolate HSL taking the shortest path around the hue circle.
+function mixHSL(c1, c2, t) {
+  let dh = c2[0] - c1[0];
+  if (dh > 0.5) dh -= 1;
+  if (dh < -0.5) dh += 1;
+  return [
+    (c1[0] + dh * t + 1) % 1,
+    c1[1] * (1 - t) + c2[1] * t,
+    c1[2] * (1 - t) + c2[2] * t,
+  ];
+}
+
 // Map element indices to SVG files - these correspond to our specialized elements
 const SVG_ELEMENTS = {
-  4: 'city',        // City element
-  5: 'harbor',      // Harbor element  
-  6: 'homeharbor',  // Home Harbor element
-  7: 'homeisland',  // Home Island element
-  8: 'island'       // Island element
+  2: 'city',        // City element
+  3: 'harbor',      // Harbor element
+  4: 'homeharbor',  // Home Harbor element
+  5: 'homeisland',  // Home Island element
+  6: 'island'       // Island element
 };
 
 // Elements that need rounded corner treatment (solid land tiles)
-const ROUNDED_CORNER_ELEMENTS = new Set([5, 6, 7, 8]); // harbor, homeharbor, homeisland, island
+const ROUNDED_CORNER_ELEMENTS = new Set([3, 4, 5, 6]); // harbor, homeharbor, homeisland, island
 
 // Special elements that need custom rendering
-const SHIP_ELEMENT = 9;  // Ship element
-const TRAIL_ELEMENT = 10; // Trail element
+const SHIP_ELEMENT = 7;  // Ship element
+const TRAIL_ELEMENT = 8; // Trail element
 
 // Helper to check if an element is a "solid" tile for corner calculations
 const isSolidTile = (elementId) => ROUNDED_CORNER_ELEMENTS.has(elementId);
@@ -380,14 +392,14 @@ const HybridRender = ({ worldScale }) => {
         // Determine fill color based on element type
         let fillColor, holeColor = null;
         
-        if (elementId === 8) { // Island - black
+        if (elementId === 6) { // Island - black
           fillColor = '#000000';
-        } else if (elementId === 7) { // Home Island - green
+        } else if (elementId === 5) { // Home Island - green
           fillColor = '#29FD2F';
-        } else if (elementId === 5) { // Harbor - black with white hole
+        } else if (elementId === 3) { // Harbor - black with white hole
           fillColor = '#000000';
           holeColor = '#FFFFFF';
-        } else if (elementId === 6) { // Home Harbor - green with white hole
+        } else if (elementId === 4) { // Home Harbor - green with white hole
           fillColor = '#29FD2F';
           holeColor = '#FFFFFF';
         }
@@ -416,7 +428,7 @@ const HybridRender = ({ worldScale }) => {
         const pixelX = x * pixelSize;
         const pixelY = y * pixelSize;
         
-        if (elementId === 4) { // City - use SVG
+        if (elementId === 2) { // City - use SVG
           const img = imageCache.current[elementId];
           if (img) {
             ctx.drawImage(img, pixelX, pixelY, pixelSize, pixelSize);
@@ -431,15 +443,8 @@ const HybridRender = ({ worldScale }) => {
           const color = colors[elementId] || [0.5, 0.5, 0.5];
           const color2 = color2s[elementId] || [0.5, 0.5, 0.5];
           
-          // Add some variability by mixing the two colors based on random data
-          const ra = sands[index + 1] / 100; // Normalize random data (0-1)
-          const mixedColor = [
-            color[0] * (1 - ra) + color2[0] * ra,
-            color[1] * (1 - ra) + color2[1] * ra,
-            color[2] * (1 - ra) + color2[2] * ra
-          ];
-          
-          const [h, s, l] = mixedColor;
+          const ra = sands[index + 1] / 100;
+          const [h, s, l] = mixHSL(color, color2, ra);
           ctx.fillStyle = `hsl(${h * 360}, ${s * 100}%, ${l * 100}%)`;
           ctx.beginPath();
           ctx.arc(

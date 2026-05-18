@@ -1,17 +1,30 @@
 import { useStore } from "../store";
 
-const ROUNDED_CORNER_ELEMENTS = new Set([5, 6, 7, 8]);
-const TRAIL_ELEMENT = 10;
-const SHIP_ELEMENT = 9;
+// Interpolate HSL taking the shortest path around the hue circle.
+// Without this, hues near 0°/360° (e.g. crimson 348° + firebrick 0°) produce cyan at the midpoint.
+function mixHSL(c1, c2, t) {
+  let dh = c2[0] - c1[0];
+  if (dh > 0.5) dh -= 1;
+  if (dh < -0.5) dh += 1;
+  return [
+    (c1[0] + dh * t + 1) % 1,
+    c1[1] * (1 - t) + c2[1] * t,
+    c1[2] * (1 - t) + c2[2] * t,
+  ];
+}
+
+const ROUNDED_CORNER_ELEMENTS = new Set([3, 4, 5, 6]);
+const TRAIL_ELEMENT = 8;
+const SHIP_ELEMENT = 7;
 
 const FILL_COLORS = {
-  5: '#000000',
-  6: '#29FD2F',
-  7: '#29FD2F', 
-  8: '#000000',
+  3: '#000000',  // Harbor
+  4: '#29FD2F',  // Home Harbor
+  5: '#29FD2F',  // Home Island
+  6: '#000000',  // Island
 };
 
-const HOLE_ELEMENTS = new Set([5, 6]);
+const HOLE_ELEMENTS = new Set([3, 4]);
 const isSolidTile = (id) => ROUNDED_CORNER_ELEMENTS.has(id);
 
 class SvgRenderer {
@@ -30,7 +43,7 @@ class SvgRenderer {
       const img = new Image();
       const blob = new Blob([txt], { type: 'image/svg+xml' });
       const url = URL.createObjectURL(blob);
-      img.onload = () => { this.svgImages.set(4, img); URL.revokeObjectURL(url); };
+      img.onload = () => { this.svgImages.set(2, img); URL.revokeObjectURL(url); };
       img.src = url;
     } catch (e) {}
   }
@@ -51,7 +64,7 @@ class SvgRenderer {
     const e = sands[idx];
     if (e === SHIP_ELEMENT) {
       const rc = sands[idx + 3];
-      if (rc === 5 || rc === 6) return rc;
+      if (rc === 3 || rc === 4) return rc;
     }
     return e;
   }
@@ -171,19 +184,17 @@ class SvgRenderer {
         
         const px = x * cs, py = y * cs;
         
-        if (e === 4 && this.svgImages.has(4)) {
+        if (e === 2 && this.svgImages.has(2)) {
           // Draw city background color
           const c1 = colors[e] || [0.5, 0.5, 0.5];
           const c2 = color2s[e] || [0.5, 0.5, 0.5];
-          const ra = (sands[(y * w + x) * 4 + 1] || 50) / 100;
-          const hh = c1[0] * (1 - ra) + c2[0] * ra;
-          const ss = c1[1] * (1 - ra) + c2[1] * ra;
-          const ll = c1[2] * (1 - ra) + c2[2] * ra;
+          const ra = sands[(y * w + x) * 4 + 1] / 100;
+          const [hh, ss, ll] = mixHSL(c1, c2, ra);
           ctx.fillStyle = `hsl(${hh * 360},${ss * 100}%,${ll * 100}%)`;
           ctx.fillRect(px, py, cs, cs);
           // Cut star as transparent hole
           ctx.globalCompositeOperation = 'destination-out';
-          ctx.drawImage(this.svgImages.get(4), px, py, cs, cs);
+          ctx.drawImage(this.svgImages.get(2), px, py, cs, cs);
           ctx.globalCompositeOperation = 'source-over';
         } else if (e === SHIP_ELEMENT) {
           ctx.fillStyle = '#0066FF';
@@ -198,10 +209,8 @@ class SvgRenderer {
         } else {
           const c1 = colors[e] || [0.5, 0.5, 0.5];
           const c2 = color2s[e] || [0.5, 0.5, 0.5];
-          const ra = (sands[idx + 1] || 50) / 100;
-          const h = c1[0] * (1 - ra) + c2[0] * ra;
-          const s = c1[1] * (1 - ra) + c2[1] * ra;
-          const l = c1[2] * (1 - ra) + c2[2] * ra;
+          const ra = sands[idx + 1] / 100;
+          const [h, s, l] = mixHSL(c1, c2, ra);
           ctx.fillStyle = `hsl(${h * 360},${s * 100}%,${l * 100}%)`;
           ctx.fillRect(px, py, cs, cs);
         }
