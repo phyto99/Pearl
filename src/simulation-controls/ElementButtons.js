@@ -3,9 +3,12 @@ import classNames from "classnames";
 import { MAX_ELEMENTS, useStore } from "../store";
 import useSound from "use-sound";
 
-// Element indices matching starterblocks.js order
-const ELEM_SHIP = 7;
-const ELEM_TRAIL = 8;
+const ELEM_SHIP = 7;     // legacy ship element
+const ELEM_TRAIL = 8;    // net trail
+const SHIP_TYPES = [19, 20, 21];
+const TRAIL_TYPES = [8, 24, 25];
+// Indices hidden in mapmaker (game-only elements)
+const MAPMAKER_HIDDEN = new Set([7, 8, 19, 20, 21, 24, 25]);
 
 const ElementButton = ({
   i,
@@ -29,10 +32,7 @@ const ElementButton = ({
     volume: 0.15,
   });
 
-  let background = `linear-gradient(45deg,
-    ${color},
-    ${color2}
-    )`;
+  let background = `linear-gradient(45deg, ${color}, ${color2})`;
   return (
     <button
       className={classNames("simulation-button", { selected, shrink })}
@@ -43,10 +43,7 @@ const ElementButton = ({
         if (bg) bg.style.fill = background.replace("0.5", "0.3");
         setSelected(i);
       }}
-      style={{
-        pointerEvents: inert && "none",
-        background,
-      }}
+      style={{ pointerEvents: inert && "none", background }}
     >
       {elements[i]}
     </button>
@@ -67,24 +64,59 @@ const ElementButtons = ({
   let [hovering, setHovering] = useState(null);
   const [play] = useSound("/media/disconnect.wav", { volume: 0.25 });
 
+  if (appMode === "game") {
+    // Game mode: two labeled rows — Ships and Trails
+    const shipRow = SHIP_TYPES.filter((i) => !disabled[i]);
+    const trailRow = TRAIL_TYPES.filter((i) => !disabled[i]);
+
+    const handleSelect = (i) => {
+      if (inert) return;
+      play();
+      const bg = document.querySelector(".blocklyMainBackground");
+      if (bg) {
+        const c = colors[i] ?? [0, 0.5, 0.5];
+        bg.style.fill = `hsla(${c[0] * 360},${c[1] * 100}%,${c[2] * 100}%,0.3)`;
+      }
+      setSelected(i);
+      if (SHIP_TYPES.includes(i)) useStore.getState().setActiveShipType(i);
+      if (TRAIL_TYPES.includes(i)) useStore.getState().setActiveTrailType(i);
+    };
+
+    return (
+      <div className="element-tray">
+        <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 10, opacity: 0.6, minWidth: 32 }}>Ships</span>
+          {shipRow.map((i) => (
+            <ElementButton
+              key={i} i={i} elements={elements} colors={colors} color2s={color2s}
+              setSelected={handleSelect} selected={i === selectedElement} inert={inert}
+            />
+          ))}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap", marginTop: 4 }}>
+          <span style={{ fontSize: 10, opacity: 0.6, minWidth: 32 }}>Trails</span>
+          {trailRow.map((i) => (
+            <ElementButton
+              key={i} i={i} elements={elements} colors={colors} color2s={color2s}
+              setSelected={handleSelect} selected={i === selectedElement} inert={inert}
+            />
+          ))}
+        </div>
+        {!inert && <div className="spacer" />}
+      </div>
+    );
+  }
+
+  // Mapmaker mode: terrain (0-6, 9-10) + all creatures (11+), hide game-only elements
   return (
     <div className="element-tray">
       {elements.map((e, i) => {
         if (disabled[i]) return null;
-
-        // Mapmaker: hide ship and trail
-        if (appMode === "mapmaker" && (i === ELEM_SHIP || i === ELEM_TRAIL)) return null;
-
-        // Game mode: only show ship
-        if (appMode === "game" && i !== ELEM_SHIP) return null;
-
+        if (MAPMAKER_HIDDEN.has(i)) return null;
         return (
           <ElementButton
-            elements={elements}
-            colors={colors}
-            color2s={color2s}
-            key={i}
-            i={i}
+            elements={elements} colors={colors} color2s={color2s}
+            key={i} i={i}
             setSelected={setSelected}
             selected={i === selectedElement}
             inert={inert}
@@ -92,11 +124,11 @@ const ElementButtons = ({
           />
         );
       })}
-      {inert === false && appMode === "mapmaker" && (
+      {inert === false && (
         <span onMouseLeave={() => setHovering(null)}>
           <button
             onMouseEnter={() => setHovering("-")}
-            className={"simulation-button element-control"}
+            className="simulation-button element-control"
             onClick={() => {
               play();
               useStore.getState().deleteSelectedElement();
@@ -104,11 +136,10 @@ const ElementButtons = ({
           >
             -
           </button>
-
           {enabledElements.length < MAX_ELEMENTS && (
             <button
               onMouseEnter={() => setHovering("+")}
-              className={"simulation-button element-control "}
+              className="simulation-button element-control"
               onClick={() => {
                 play();
                 useStore.getState().newElement();
@@ -119,11 +150,11 @@ const ElementButtons = ({
           )}
         </span>
       )}
-      {!inert && <div className={"spacer"} />}
-      <style jsx>{``}</style>
+      {!inert && <div className="spacer" />}
     </div>
   );
 };
+
 export const WrappedElementButtons = ({ selectedElement, setSelected }) => {
   const elements = useStore((state) => state.elements);
   const disabled = useStore((state) => state.disabled);

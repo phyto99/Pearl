@@ -16,6 +16,9 @@ function mixHSL(c1, c2, t) {
 const ROUNDED_CORNER_ELEMENTS = new Set([3, 4, 5, 6]);
 const TRAIL_ELEMENT = 8;
 const SHIP_ELEMENT = 7;
+const SHIP_TYPE_MIN = 19;
+const SHIP_TYPE_MAX = 21;
+function isShipTypeElement(e) { return e >= SHIP_TYPE_MIN && e <= SHIP_TYPE_MAX; }
 
 const FILL_COLORS = {
   3: '#000000',  // Harbor
@@ -62,7 +65,7 @@ class SvgRenderer {
   terrainElement(sands, x, y) {
     const idx = (y * this.w + x) * 4;
     const e = sands[idx];
-    if (e === SHIP_ELEMENT) {
+    if (e === SHIP_ELEMENT || isShipTypeElement(e)) {
       const rc = sands[idx + 3];
       if (rc === 3 || rc === 4) return rc;
     }
@@ -196,8 +199,10 @@ class SvgRenderer {
           ctx.globalCompositeOperation = 'destination-out';
           ctx.drawImage(this.svgImages.get(2), px, py, cs, cs);
           ctx.globalCompositeOperation = 'source-over';
-        } else if (e === SHIP_ELEMENT) {
-          ctx.fillStyle = '#0066FF';
+        } else if (e === SHIP_ELEMENT || isShipTypeElement(e)) {
+          // All ship types (7, 19-21) render as diamonds using the element's color
+          const sc = colors[e] || [0.22, 0.8, 0.6];
+          ctx.fillStyle = `hsl(${sc[0] * 360},${sc[1] * 100}%,${sc[2] * 100}%)`;
           ctx.beginPath();
           const cx = px + cs / 2, cy = py + cs / 2, hs = cs / 2;
           ctx.moveTo(cx, cy - hs);
@@ -290,7 +295,8 @@ class SvgRenderer {
           const nx = x + ddx;
           const ny = y + ddy;
           const neighborIsTrail = nx >= 0 && nx < ww && ny >= 0 && ny < wh && trails[ny * this.w + nx] > 0;
-          const neighborIsShip = nx >= 0 && nx < ww && ny >= 0 && ny < wh && sands[(ny * this.w + nx) * 4] === SHIP_ELEMENT;
+          const _ns = nx >= 0 && nx < ww && ny >= 0 && ny < wh ? sands[(ny * this.w + nx) * 4] : -1;
+          const neighborIsShip = _ns === SHIP_ELEMENT || isShipTypeElement(_ns);
           if (neighborIsTrail || neighborIsShip) {
             ctx.beginPath();
             ctx.moveTo(cx, cy);

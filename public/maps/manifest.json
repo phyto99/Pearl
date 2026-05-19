@@ -46,5 +46,37 @@
     "philosophy": "Density-Counted (GoL)",
     "createdAt": "2026-05-17T00:00:00Z",
     "thumbnail": "/maps/thumbnails/map-006.png"
+  },
+  {
+    "id": "map-007",
+    "title": "Fleeing Shoals",
+    "description": "Prototype: Fleeing Fish (22) scatter away from ships in open ocean. Use your net to corner shoals. Orca (11) are the natural predator here.",
+    "philosophy": "Fleeing Behaviour",
+    "createdAt": "2026-05-18T00:00:00Z",
+    "thumbnail": "/maps/thumbnails/map-007.png"
+  },
+  {
+    "id": "map-008",
+    "title": "Net Breakers",
+    "description": "Prototype: Net Breakers (23) treat your trail as open water and swim through it. Traditional Cod (16) obey the net. Channel terrain forces close-quarters play.",
+    "philosophy": "Net Penetration",
+    "createdAt": "2026-05-18T00:00:00Z",
+    "thumbnail": "/maps/thumbnails/map-008.png"
+  },
+  {
+    "id": "map-009",
+    "title": "Hunter & Hunted",
+    "description": "Prototype: Both Fleeing Fish (22) and Net Breakers (23) populate open water alongside Orca (11) and Sea Lion (12). A chaotic mixed ecosystem.",
+    "philosophy": "Mixed Mechanics",
+    "createdAt": "2026-05-18T00:00:00Z",
+    "thumbnail": "/maps/thumbnails/map-009.png"
+  },
+  {
+    "id": "map-010",
+    "title": "The Gauntlet",
+    "description": "Prototype: Zigzag island maze with Fleeing Fish (22), Net Breakers (23), Orca (11), and Sea Otter (14). Navigate corridors to close loops.",
+    "philosophy": "Maze Navigation",
+    "createdAt": "2026-05-18T00:00:00Z",
+    "thumbnail": "/maps/thumbnails/map-010.png"
   }
 ]

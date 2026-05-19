@@ -4,7 +4,7 @@ import { deriveColor, deriveName } from "./blocks/generator";
 import { getRandomColorName } from "./utils/theme.js";
 let bufferXMLs = starterXMLs;
 
-export const MAX_ELEMENTS = 19;
+export const MAX_ELEMENTS = 26;
 
 let useStore = create((set, get) => ({
   // BROWSE
@@ -46,14 +46,11 @@ let useStore = create((set, get) => ({
   gameStarted: false,
   setGameStarted: (v) => set(() => ({ gameStarted: v })),
 
-  // SHIP TYPES — modular ship system (grey = not yet implemented)
-  shipTypes: [
-    { id: 0, name: "Net Ship",    color: "#0066FF", implemented: true  },
-    { id: 1, name: "Barrier",     color: "#888888", implemented: false },
-    { id: 2, name: "Drift Net",   color: "#888888", implemented: false },
-  ],
-  selectedShipType: 0,
-  setSelectedShipType: (t) => set(() => ({ selectedShipType: t })),
+  // ACTIVE SHIP / TRAIL TYPE (element indices in starterblocks)
+  activeShipType: 19,
+  setActiveShipType: (t) => set(() => ({ activeShipType: t })),
+  activeTrailType: 8,
+  setActiveTrailType: (t) => set(() => ({ activeTrailType: t })),
 
   // SCORE — fish/creature counts per element index
   fishCounts: {},
@@ -82,9 +79,19 @@ let useStore = create((set, get) => ({
   resetCamera: () => set(() => ({ cameraZoom: 1, cameraX: 0, cameraY: 0 })),
 
   // EDITOR + PLAYGROUND
-  xmls: starterXMLs.slice(0, 11), // Air Wall City Harbor HomeHarbor HomeIsland Island Ship Trail Water Sand
-  // Indices 0-8 enabled (Air–Trail); 9=Water and 10=Sand disabled (appear after Island via +); 11-18 marine creatures disabled
-  disabled: [false, false, false, false, false, false, false, false, false, true, true, ...Array(MAX_ELEMENTS - 11).fill(true)],
+  xmls: starterXMLs.slice(0, MAX_ELEMENTS),
+  // 0-8: terrain+game elements enabled; 9-10: Water/Sand disabled (add via +)
+  // 11-18: ALL marine creatures enabled in mapmaker; 19-21: ship types (game); 22-23: prototype fish disabled; 24-25: trail types (game)
+  disabled: [
+    false, false, false, false, false, false, false, // 0-6 terrain
+    false, // 7 legacy ship
+    false, // 8 net trail
+    true, true, // 9-10 Water, Sand
+    false, false, false, false, false, false, false, false, // 11-18 creatures all enabled
+    false, false, false, // 19-21 ship types
+    true, true, // 22-23 prototype fish (add via +)
+    false, false, // 24-25 trail types
+  ],
   elements: starterXMLs.slice(0, MAX_ELEMENTS).map((x) => deriveName(x)),
   colors: starterXMLs.slice(0, MAX_ELEMENTS).map((x) => deriveColor(x)),
   color2s: starterXMLs.slice(0, MAX_ELEMENTS).map((x) => deriveColor(x, 2)),

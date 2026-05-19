@@ -52,9 +52,6 @@ const ExtraUI = () => {
   const setPaused = useStore((state) => state.setPaused);
   const fishCounts = useStore((state) => state.fishCounts);
   const resetFishCounts = useStore((state) => state.resetFishCounts);
-  const shipTypes = useStore((state) => state.shipTypes);
-  const selectedShipType = useStore((state) => state.selectedShipType);
-  const setSelectedShipType = useStore((state) => state.setSelectedShipType);
   const elements = useStore((state) => state.elements);
 
   let [copiedState, setCopiedState] = useState(null);
@@ -95,7 +92,9 @@ const ExtraUI = () => {
     setGameStarted(false);
     setPaused(true);
     useStore.getState().resetFishCounts();
-    useStore.getState().setSelected(7); // Ship element index
+    useStore.getState().setActiveShipType(19);
+    useStore.getState().setActiveTrailType(8);
+    useStore.getState().setSelected(19); // Regular Ship
   }
 
   function switchToMapmaker() {
@@ -147,38 +146,6 @@ const ExtraUI = () => {
                 </button>
               </>
             )}
-          </span>
-        </div>
-
-        {/* Ship type selector */}
-        <div className="controls-row" style={{ alignItems: "center", gap: 6 }}>
-          <span style={{ fontSize: 11, marginRight: 4, opacity: 0.7 }}>Ship:</span>
-          {shipTypes.map((st) => (
-            <button
-              key={st.id}
-              title={st.implemented ? st.name : `${st.name} (coming soon)`}
-              onClick={() => st.implemented && setSelectedShipType(st.id)}
-              style={{
-                width: 28,
-                height: 28,
-                borderRadius: 4,
-                border: selectedShipType === st.id ? "2px solid #fff" : "2px solid transparent",
-                background: st.implemented ? st.color : "#555",
-                opacity: st.implemented ? 1 : 0.45,
-                cursor: st.implemented ? "pointer" : "default",
-                padding: 0,
-                fontSize: 10,
-                color: "#fff",
-                overflow: "hidden",
-                whiteSpace: "nowrap",
-                textOverflow: "ellipsis",
-              }}
-            >
-              {!st.implemented && "?"}
-            </button>
-          ))}
-          <span style={{ fontSize: 10, opacity: 0.6, marginLeft: 2 }}>
-            {shipTypes[selectedShipType]?.name}
           </span>
         </div>
 

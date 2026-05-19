@@ -19,10 +19,12 @@ import { sands, trails, width, height, tick, initSand, pushUndo } from "./SandAp
 
 // Element indices (must match starterblocks.js order)
 const ELEM_SHIP = 7;
-const ELEM_TRAIL = 8;
 const ELEM_CITY = 2;
 const ELEM_HARBOR = 3;
 const ELEM_HOME_HARBOR = 4;
+const SHIP_TYPE_MIN = 19;
+const SHIP_TYPE_MAX = 21;
+function isShipTypeElement(e) { return e >= SHIP_TYPE_MIN && e <= SHIP_TYPE_MAX; }
 import { pointsAlongLine } from "../utils/utils";
 import LoadingCurtain from "../pages/loadingCurtain.js";
 let dpi = 4;
@@ -285,8 +287,8 @@ const Sand = () => {
 
       const { appMode, gameStarted } = useStore.getState();
 
-      // Mapmaker: block ship and trail placement
-      if (appMode === "mapmaker" && (selectedElement === ELEM_SHIP || selectedElement === ELEM_TRAIL)) {
+      // Mapmaker: block ship, trail, and game-only element placement
+      if (appMode === "mapmaker" && (selectedElement === ELEM_SHIP || isShipTypeElement(selectedElement))) {
         return;
       }
 
@@ -295,8 +297,8 @@ const Sand = () => {
         return;
       }
 
-      // Game mode placement phase: only allow ship placement
-      if (appMode === "game" && selectedElement !== ELEM_SHIP) {
+      // Game mode placement phase: only allow ship-type placement
+      if (appMode === "game" && selectedElement !== ELEM_SHIP && !isShipTypeElement(selectedElement)) {
         return;
       }
 
@@ -309,7 +311,8 @@ const Sand = () => {
           });
         }
 
-        let r = size / 2;
+        // Ships always place exactly one cell regardless of brush size
+        let r = (selectedElement === ELEM_SHIP || isShipTypeElement(selectedElement)) ? 0 : size / 2;
         for (let dx = -r; dx <= r; dx += 1) {
           for (let dy = -r; dy <= r; dy += 1) {
             let rr = dx * dx + dy * dy;
@@ -320,7 +323,7 @@ const Sand = () => {
             const py = Math.floor(y + dy);
 
             // Game mode: ship can only be placed on harbor or home harbor
-            if (appMode === "game" && selectedElement === ELEM_SHIP) {
+            if (appMode === "game" && (selectedElement === ELEM_SHIP || isShipTypeElement(selectedElement))) {
               const cellIndex = (px + py * width) * 4;
               const cellElement = sands[cellIndex];
               if (cellElement !== ELEM_HARBOR && cellElement !== ELEM_HOME_HARBOR) {

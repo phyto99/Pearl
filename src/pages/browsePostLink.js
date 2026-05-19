@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import * as timeago from "timeago.js";
 import useSound from "use-sound";
 import classNames from "classnames";
 import { useRouter } from "next/router";
 import useStore from "../store";
 import { loadPostFromServer } from "../loadPostFromServer.js";
+import MapPreviewCanvas from "../simulation/MapPreviewCanvas";
 
 export const BrowsePostLink = ({ post: initPost, isReply, isParent }) => {
   const router = useRouter();
@@ -15,11 +16,15 @@ export const BrowsePostLink = ({ post: initPost, isReply, isParent }) => {
 
   const [play] = useSound("/media/delete.wav", { volume: 0.15 });
 
+  // Preview state: null = not fetched, false = fetching, object = ready
+  const [previewData, setPreviewData] = useState(null);
+  const [hovering, setHovering] = useState(false);
+  const fetchedRef = useRef(false);
+
   let displayTime = new Date(post.createdAt).toLocaleDateString();
   const msAgo = new Date().getTime() - new Date(post.createdAt).getTime();
   if (msAgo < 7 * 24 * 60 * 60 * 1000) displayTime = timeago.format(post.createdAt);
 
-  // Local maps have a .thumbnail field; remote posts used imageURLBase
   const thumbSrc = post.thumbnail || `https://storage.googleapis.com/sandspiel-studio/creations/${post.id}.png`;
 
   const handleClick = (e) => {
@@ -32,6 +37,25 @@ export const BrowsePostLink = ({ post: initPost, isReply, isParent }) => {
     e.preventDefault();
   };
 
+  const handleMouseEnter = () => {
+    if (post.placeholder) return;
+    setHovering(true);
+    // Fetch full map data lazily on first hover
+    if (!fetchedRef.current) {
+      fetchedRef.current = true;
+      fetch(`/api/maps/${post.id}`)
+        .then((r) => r.ok ? r.json() : null)
+        .then((data) => { if (data) setPreviewData(data); })
+        .catch(() => {});
+    }
+  };
+
+  const handleMouseLeave = () => {
+    setHovering(false);
+  };
+
+  const showPreview = hovering && previewData;
+
   return (
     <div className="post-family">
       <div
@@ -40,14 +64,38 @@ export const BrowsePostLink = ({ post: initPost, isReply, isParent }) => {
           placeholder: post.placeholder,
         })}
         onClick={handleClick}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
       >
-        <a className="postThumbnail">
+        <a className="postThumbnail" style={{ position: 'relative', display: 'block' }}>
+          {/* Static thumbnail — hidden while previewing */}
           <img
             src={thumbSrc}
             width={300}
             height={300}
             alt={post.title}
+            style={{
+              display: 'block',
+              width: '100%',
+              opacity: showPreview ? 0 : 1,
+              transition: 'opacity 0.15s',
+              position: showPreview ? 'absolute' : 'static',
+              top: 0, left: 0,
+            }}
           />
+          {/* Live preview canvas — shown on hover once data is loaded */}
+          {previewData && (
+            <MapPreviewCanvas
+              data={previewData}
+              style={{
+                opacity: showPreview ? 1 : 0,
+                transition: 'opacity 0.15s',
+                position: showPreview ? 'static' : 'absolute',
+                top: 0, left: 0,
+                pointerEvents: 'none',
+              }}
+            />
+          )}
         </a>
 
         <div className="browse-info">

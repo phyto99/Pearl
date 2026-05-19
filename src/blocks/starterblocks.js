@@ -1,9 +1,13 @@
 import tinycolor2 from "tinycolor2";
 
-// New order: Air(0) Wall(1) City(2) Harbor(3) HomeHarbor(4) HomeIsland(5) Island(6) Ship(7) Trail(8)
-//            Water(9) Sand(10) -- disabled initially, appear after Island when pressing +
-//            Orca(11) SeaLion(12) Octopus(13) SeaOtter(14) SeaUrchin(15) Cod(16) Squid(17) Crab(18)
-//            Legacy elements at 19+ are inaccessible (MAX_ELEMENTS = 19)
+// Element order:
+//   Terrain:  Air(0) Wall(1) City(2) Harbor(3) HomeHarbor(4) HomeIsland(5) Island(6)
+//   Game:     Ship(7) Trail/Net(8)
+//   Optional: Water(9) Sand(10) — disabled initially, add via +
+//   Creatures: Orca(11) SeaLion(12) Octopus(13) SeaOtter(14) SeaUrchin(15) Cod(16) Squid(17) Crab(18)
+//   Ships:    Regular Ship(19) Pirate Ship(20) Ship???(21)
+//   Prototype fish: Fleeing Fish(22) Net Breaker(23)
+//   Trails:   Barrier(24) Trail???(25)
 
 // RB = hunger counter (0 on placement). Eating kills prey→Air and resets RB.
 // Reproduction is separate (1-in-40 clone to adjacent Air) so population grows slowly.
@@ -13,6 +17,14 @@ const predatorXml = (name, color, color2, selfIdx, prey1, prey2, threshold) =>
 // Prey never die of old age — only when eaten. Reproduce fast into adjacent Air.
 const preyXml = (name, color, color2, reproRate) =>
   `<xml xmlns="https://developers.google.com/blockly/xml"><block type="sand_behavior_base" deletable="false" x="10" y="10"><field name="ELEMENT_NAME">${name}</field><field name="COLOR">${color}</field><field name="COLOR2">${color2}</field><next><block type="in_a_random"><field name="NAME">ROTATION</field><statement name="NAME"><block type="if"><mutation elseIds="0"></mutation><value name="CONDITION"><block type="boolean_operation"><field name="OPERATION">AND</field><value name="A"><block type="one_in"><value name="NUMBER"><shadow type="number_literal"><field name="VALUE">${reproRate}</field></shadow></value></block></value><value name="B"><block type="is_block"><value name="CELL"><shadow type="vector_constant"><field name="VALUE">RIGHT</field></shadow></value><value name="ELEMENT"><shadow type="element_literal"><field name="VALUE">0</field></shadow></value></block></value></block></value><statement name="THEN"><block type="clone"><value name="DIRECTION"><shadow type="vector_constant"><field name="VALUE">RIGHT</field></shadow></value></block></statement><value name="ELSE_CONDITION0"><shadow type="true_literal"></shadow><block type="is_block"><value name="CELL"><shadow type="vector_constant"><field name="VALUE">RIGHT</field></shadow></value><value name="ELEMENT"><shadow type="element_literal"><field name="VALUE">0</field></shadow></value></block></value><statement name="THEN0"><block type="move"><value name="DIRECTION"><shadow type="vector_constant"><field name="VALUE">RIGHT</field></shadow></value></block></statement></block></statement></block></next></block></xml>`;
+
+// Fleeing Fish — flee away from adjacent ships (7=legacy,19=Regular,20=Pirate), else reproduce/move.
+const fleeingFishXml = (name, color, color2, reproRate) =>
+  `<xml xmlns="https://developers.google.com/blockly/xml"><block type="sand_behavior_base" deletable="false" x="10" y="10"><field name="ELEMENT_NAME">${name}</field><field name="COLOR">${color}</field><field name="COLOR2">${color2}</field><next><block type="in_a_random"><field name="NAME">ROTATION</field><statement name="NAME"><block type="if"><mutation elseIds="0,1"></mutation><value name="CONDITION"><block type="is_block"><value name="CELL"><shadow type="vector_constant"><field name="VALUE">RIGHT</field></shadow></value><value name="ELEMENT"><block type="group"><mutation itemCount="3"></mutation><value name="ITEM0"><shadow type="element_literal"><field name="VALUE">7</field></shadow></value><value name="ITEM1"><shadow type="element_literal"><field name="VALUE">19</field></shadow></value><value name="ITEM2"><shadow type="element_literal"><field name="VALUE">20</field></shadow></value></block></value></block></value><statement name="THEN"><block type="move"><value name="DIRECTION"><shadow type="vector_constant"><field name="VALUE">LEFT</field></shadow></value></block></statement><value name="ELSE_CONDITION0"><shadow type="true_literal"></shadow><block type="boolean_operation"><field name="OPERATION">AND</field><value name="A"><block type="one_in"><value name="NUMBER"><shadow type="number_literal"><field name="VALUE">${reproRate}</field></shadow></value></block></value><value name="B"><block type="is_block"><value name="CELL"><shadow type="vector_constant"><field name="VALUE">RIGHT</field></shadow></value><value name="ELEMENT"><shadow type="element_literal"><field name="VALUE">0</field></shadow></value></block></value></block></value><statement name="THEN0"><block type="clone"><value name="DIRECTION"><shadow type="vector_constant"><field name="VALUE">RIGHT</field></shadow></value></block></statement><value name="ELSE_CONDITION1"><shadow type="true_literal"></shadow><block type="is_block"><value name="CELL"><shadow type="vector_constant"><field name="VALUE">RIGHT</field></shadow></value><value name="ELEMENT"><shadow type="element_literal"><field name="VALUE">0</field></shadow></value></block></value><statement name="THEN1"><block type="move"><value name="DIRECTION"><shadow type="vector_constant"><field name="VALUE">RIGHT</field></shadow></value></block></statement></block></statement></block></next></block></xml>`;
+
+// Net Breaker — treats Air(0) AND Net Trail(8) as passable; can move/clone through nets.
+const netBreakerXml = (name, color, color2, reproRate) =>
+  `<xml xmlns="https://developers.google.com/blockly/xml"><block type="sand_behavior_base" deletable="false" x="10" y="10"><field name="ELEMENT_NAME">${name}</field><field name="COLOR">${color}</field><field name="COLOR2">${color2}</field><next><block type="in_a_random"><field name="NAME">ROTATION</field><statement name="NAME"><block type="if"><mutation elseIds="0"></mutation><value name="CONDITION"><block type="boolean_operation"><field name="OPERATION">AND</field><value name="A"><block type="one_in"><value name="NUMBER"><shadow type="number_literal"><field name="VALUE">${reproRate}</field></shadow></value></block></value><value name="B"><block type="is_block"><value name="CELL"><shadow type="vector_constant"><field name="VALUE">RIGHT</field></shadow></value><value name="ELEMENT"><block type="group"><mutation itemCount="2"></mutation><value name="ITEM0"><shadow type="element_literal"><field name="VALUE">0</field></shadow></value><value name="ITEM1"><shadow type="element_literal"><field name="VALUE">8</field></shadow></value></block></value></block></value></block></value><statement name="THEN"><block type="clone"><value name="DIRECTION"><shadow type="vector_constant"><field name="VALUE">RIGHT</field></shadow></value></block></statement><value name="ELSE_CONDITION0"><shadow type="true_literal"></shadow><block type="is_block"><value name="CELL"><shadow type="vector_constant"><field name="VALUE">RIGHT</field></shadow></value><value name="ELEMENT"><block type="group"><mutation itemCount="2"></mutation><value name="ITEM0"><shadow type="element_literal"><field name="VALUE">0</field></shadow></value><value name="ITEM1"><shadow type="element_literal"><field name="VALUE">8</field></shadow></value></block></value></block></value><statement name="THEN0"><block type="move"><value name="DIRECTION"><shadow type="vector_constant"><field name="VALUE">RIGHT</field></shadow></value></block></statement></block></statement></block></next></block></xml>`;
 
 const starterBlocks = [
   // 0: Air
@@ -53,12 +65,20 @@ const starterBlocks = [
   preyXml('Squid', '#7FFF00', '#32CD32', 18),
   // 18: Crab -- prey (red), reproduces 1-in-10 into adjacent Air
   preyXml('Crab', '#DC143C', '#B22222', 10),
-  // 19+: Legacy elements (inaccessible at MAX_ELEMENTS=19) -- kept for reference
-  '<xml xmlns="https://developers.google.com/blockly/xml"><block type="sand_behavior_base"  deletable="false" x="10" y="10"><field name="ELEMENT_NAME">Cloner</field><field name="COLOR">#8f62f0</field><field name="COLOR2">#633c78</field></block></xml>',
-  '<xml xmlns="https://developers.google.com/blockly/xml"><block type="sand_behavior_base"  deletable="false" x="10" y="10"><field name="ELEMENT_NAME">Plant</field><field name="COLOR">#00781a</field><field name="COLOR2">#7fdab4</field></block></xml>',
-  '<xml xmlns="https://developers.google.com/blockly/xml"><block type="sand_behavior_base"  deletable="false" x="10" y="10"><field name="ELEMENT_NAME">Stone</field><field name="COLOR">#93a8a8</field><field name="COLOR2">#c2cfc8</field></block></xml>',
-  '<xml xmlns="https://developers.google.com/blockly/xml"><block type="sand_behavior_base"  deletable="false" x="10" y="10"><field name="ELEMENT_NAME">Fire</field><field name="COLOR">#f05446</field><field name="COLOR2">#dacf00</field></block></xml>',
-  '<xml xmlns="https://developers.google.com/blockly/xml"><block type="sand_behavior_base"  deletable="false" x="10" y="10"><field name="ELEMENT_NAME">???</field><field name="COLOR">#00ff40</field><field name="COLOR2">#0048ff</field></block></xml>',
+  // 19: Regular Ship — movement is hardcoded; XML is for editor display only
+  '<xml xmlns="https://developers.google.com/blockly/xml"><block type="sand_behavior_base" deletable="false" x="10" y="10"><field name="ELEMENT_NAME">Regular Ship</field><field name="COLOR">#0066FF</field><field name="COLOR2">#4488FF</field></block></xml>',
+  // 20: Pirate Ship — in multiplayer: steals fish from other ships; same movement otherwise
+  '<xml xmlns="https://developers.google.com/blockly/xml"><block type="sand_behavior_base" deletable="false" x="10" y="10"><field name="ELEMENT_NAME">Pirate Ship</field><field name="COLOR">#1a1a1a</field><field name="COLOR2">#4a4a4a</field></block></xml>',
+  // 21: Ship placeholder (not yet implemented)
+  '<xml xmlns="https://developers.google.com/blockly/xml"><block type="sand_behavior_base" deletable="false" x="10" y="10"><field name="ELEMENT_NAME">Ship ???</field><field name="COLOR">#888888</field><field name="COLOR2">#aaaaaa</field></block></xml>',
+  // 22: Fleeing Fish — flees from any ship (7, 19, 20); reproduces slowly into Air
+  fleeingFishXml('Fleeing Fish', '#FF6600', '#FF4400', 15),
+  // 23: Net Breaker — treats Net Trail (8) as open water; can reproduce through it
+  netBreakerXml('Net Breaker', '#CC0044', '#FF2266', 20),
+  // 24: Barrier Trail — permanent wall placed by ship; no CA behavior
+  '<xml xmlns="https://developers.google.com/blockly/xml"><block type="sand_behavior_base" deletable="false" x="10" y="10"><field name="ELEMENT_NAME">Barrier</field><field name="COLOR">#FF8800</field><field name="COLOR2">#FFAA22</field></block></xml>',
+  // 25: Trail placeholder (not yet implemented)
+  '<xml xmlns="https://developers.google.com/blockly/xml"><block type="sand_behavior_base" deletable="false" x="10" y="10"><field name="ELEMENT_NAME">Trail ???</field><field name="COLOR">#888888</field><field name="COLOR2">#aaaaaa</field></block></xml>',
 ];
 
 export function generatePlaceholder(i) {

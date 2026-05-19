@@ -274,9 +274,9 @@ export function initSand([x, y], v, [bx, by]) {
   const cellIndex = getIndex(x, y) / 4;
   trails[cellIndex] = 0;
 
-  if (v === 7) {
+  if (v === 7 || isShipType(v)) {
     const existingElement = sands[cellIndex * 4];
-    setSand(x, y, 7, 0, 0, existingElement);
+    setSand(x, y, v, 0, 0, existingElement);
     return;
   }
 
@@ -330,6 +330,10 @@ function setSandRelative([x, y], v, ra, rb, rc, reset = true) {
   if (v !== undefined) {
     if (sands[i] == v) return; // bail to not  reset ra/rb/rc on no-ops
     sands[i] = v;
+    // Clear trail overlay when a non-ship, non-trail element occupies a cell
+    if (v !== 7 && v !== 8 && !isShipType(v) && v !== ELEM_BARRIER_TRAIL) {
+      trails[i >> 2] = 0;
+    }
     if (reset) {
       ra = ra || randomData(x, y);
       rb = rb || 0;
@@ -380,6 +384,12 @@ function cloneSandRelative([sx, sy], [bx, by], swaps) {
   sands[bid + 1] = sands[aid + 1];
   sands[bid + 2] = sands[aid + 2];
   sands[bid + 3] = sands[aid + 3];
+
+  // Clear trail overlay at destination if it now holds a non-trail element
+  const cloned = sands[bid];
+  if (cloned !== 7 && cloned !== 8 && !isShipType(cloned) && cloned !== ELEM_BARRIER_TRAIL) {
+    trails[bid >> 2] = 0;
+  }
 }
 
 function swapSandRelative([sx, sy], [bx, by], swaps) {
@@ -438,7 +448,9 @@ function swapSandRelative([sx, sy], [bx, by], swaps) {
   sands[bid + 2] = arb;
   sands[bid + 3] = arc;
 
-  // swaps.push([aid, bid]);
+  // Clear trail overlay for cells that now hold non-ship, non-trail elements
+  if (b !== 7 && b !== 8 && !isShipType(b) && b !== ELEM_BARRIER_TRAIL) trails[aid >> 2] = 0;
+  if (a !== 7 && a !== 8 && !isShipType(a) && a !== ELEM_BARRIER_TRAIL) trails[bid >> 2] = 0;
 }
 
 function moveOrigin([x, y]) {
@@ -792,18 +804,35 @@ export const fireEvent = (offset) => {
 
 const ELEM_FISH_MIN = 11;
 const ELEM_FISH_MAX = 18;
+const SHIP_TYPE_MIN = 19;
+const SHIP_TYPE_MAX = 21;
+const ELEM_BARRIER_TRAIL = 24;
 
 function isFishElement(elem) {
   return elem >= ELEM_FISH_MIN && elem <= ELEM_FISH_MAX;
 }
+function isShipType(elem) {
+  return elem >= SHIP_TYPE_MIN && elem <= SHIP_TYPE_MAX;
+}
 
-// Flood-fill from world borders through non-trail cells.
-// Any cell not reached AND not a trail cell = enclosed inside the net.
-// Counts + clears enclosed fish, then clears all trail cells.
-function detectAndClearLoop() {
+// Flood-fill from world borders through non-boundary cells.
+// Any cell not reached AND not a boundary cell = enclosed inside the loop.
+// Counts + clears enclosed fish, then clears net trail (barrier trail persists).
+// trailType: 8 = net trail (uses trails[] overlay), 24 = barrier trail (uses sands[] element).
+function detectAndClearLoop(trailType = 8) {
+  const isBarrier = trailType === ELEM_BARRIER_TRAIL;
   const { worldWidth, worldHeight } = globalState;
 
-  const visited = new Uint8Array(cellCount); // indexed by x + y * width
+  // A cell is a boundary if it's part of the trail (net or barrier) or is a ship (loop-closing cell)
+  function isBoundary(ci) {
+    if (isBarrier) {
+      const e = sands[ci * 4];
+      return e === ELEM_BARRIER_TRAIL || e === 7 || isShipType(e);
+    }
+    return trails[ci] > 0;
+  }
+
+  const visited = new Uint8Array(cellCount);
   const queue = [];
   let qi = 0;
 
@@ -811,7 +840,7 @@ function detectAndClearLoop() {
     for (let x = 0; x < worldWidth; x++) {
       if (x > 0 && x < worldWidth - 1 && y > 0 && y < worldHeight - 1) continue;
       const ci = x + y * width;
-      if (trails[ci] === 0 && !visited[ci]) {
+      if (!isBoundary(ci) && !visited[ci]) {
         visited[ci] = 1;
         queue.push(x, y);
       }
@@ -821,13 +850,12 @@ function detectAndClearLoop() {
   while (qi < queue.length) {
     const cx = queue[qi++];
     const cy = queue[qi++];
-    const nx1 = cx + 1, nx2 = cx - 1, ny1 = cy + 1, ny2 = cy - 1;
     for (let i = 0; i < 4; i++) {
-      const nx = i < 2 ? (i === 0 ? nx1 : nx2) : cx;
-      const ny = i < 2 ? cy : (i === 2 ? ny1 : ny2);
+      const nx = i < 2 ? (i === 0 ? cx + 1 : cx - 1) : cx;
+      const ny = i < 2 ? cy : (i === 2 ? cy + 1 : cy - 1);
       if (nx < 0 || nx >= worldWidth || ny < 0 || ny >= worldHeight) continue;
       const nci = nx + ny * width;
-      if (visited[nci] || trails[nci] > 0) continue;
+      if (visited[nci] || isBoundary(nci)) continue;
       visited[nci] = 1;
       queue.push(nx, ny);
     }
@@ -837,7 +865,7 @@ function detectAndClearLoop() {
   for (let y = 0; y < worldHeight; y++) {
     for (let x = 0; x < worldWidth; x++) {
       const ci = x + y * width;
-      if (!visited[ci] && trails[ci] === 0) {
+      if (!visited[ci] && !isBoundary(ci)) {
         const elem = sands[ci * 4];
         if (isFishElement(elem)) {
           counts[elem] = (counts[elem] || 0) + 1;
@@ -850,16 +878,19 @@ function detectAndClearLoop() {
     }
   }
 
-  for (let y = 0; y < worldHeight; y++) {
-    for (let x = 0; x < worldWidth; x++) {
-      const ci = x + y * width;
-      if (trails[ci] > 0) {
-        trails[ci] = 0;
-        if (sands[ci * 4] === 8) {
-          sands[ci * 4] = 0;
-          sands[ci * 4 + 1] = 0;
-          sands[ci * 4 + 2] = 0;
-          sands[ci * 4 + 3] = 0;
+  // Net trail: clear all trail cells after capture. Barrier trail: keep walls, fish already cleared.
+  if (!isBarrier) {
+    for (let y = 0; y < worldHeight; y++) {
+      for (let x = 0; x < worldWidth; x++) {
+        const ci = x + y * width;
+        if (trails[ci] > 0) {
+          trails[ci] = 0;
+          if (sands[ci * 4] === 8) {
+            sands[ci * 4] = 0;
+            sands[ci * 4 + 1] = 0;
+            sands[ci * 4 + 2] = 0;
+            sands[ci * 4 + 3] = 0;
+          }
         }
       }
     }
@@ -882,38 +913,39 @@ let shipCooldowns = new Map(); // Track cooldowns per ship position
 // Ship movement logic - runs every frame (not just ticks)
 function handleShipMovement() {
   const { worldWidth, worldHeight } = globalState;
-  
-  // Check for new key presses vs held keys
+
   let dx = 0, dy = 0;
   let isNewKeyPress = false;
-  
+
   if (keys["ArrowRight"] && !previousKeys.ArrowRight) { dx = 1; isNewKeyPress = true; }
   if (keys["ArrowLeft"] && !previousKeys.ArrowLeft) { dx = -1; isNewKeyPress = true; }
   if (keys["ArrowUp"] && !previousKeys.ArrowUp) { dy = -1; isNewKeyPress = true; }
   if (keys["ArrowDown"] && !previousKeys.ArrowDown) { dy = 1; isNewKeyPress = true; }
-  
-  // For held keys, use current state
+
   if (!isNewKeyPress) {
     if (keys["ArrowRight"]) dx = 1;
     if (keys["ArrowLeft"]) dx = -1;
     if (keys["ArrowUp"]) dy = -1;
     if (keys["ArrowDown"]) dy = 1;
   }
-  
-  // Update previous key states
+
   previousKeys.ArrowUp = keys["ArrowUp"];
   previousKeys.ArrowDown = keys["ArrowDown"];
   previousKeys.ArrowLeft = keys["ArrowLeft"];
   previousKeys.ArrowRight = keys["ArrowRight"];
-  
+
   if (dx === 0 && dy === 0) return;
 
-  // Scan for all ships
+  const activeTrailType = useStore.getState().activeTrailType || 8;
+  const isBarrierTrail = activeTrailType === ELEM_BARRIER_TRAIL;
+
+  // Scan for all ships (legacy element 7 + ship types 19-21)
   const shipPositions = [];
   for (let y = 0; y < worldHeight; y++) {
     for (let x = 0; x < worldWidth; x++) {
       const index = getIndex(x, y);
-      if (sands[index] === 7) {
+      const elem = sands[index];
+      if (elem === 7 || isShipType(elem)) {
         const cellIndex = index / 4;
         const cooldown = shipCooldowns.get(cellIndex) || 0;
         if (isNewKeyPress || cooldown <= 0) {
@@ -922,41 +954,52 @@ function handleShipMovement() {
       }
     }
   }
-  
-  // Move ships
+
   for (const ship of shipPositions) {
     const newX = ship.x + dx;
     const newY = ship.y + dy;
-    
-    if (newX >= 0 && newX < worldWidth && newY >= 0 && newY < worldHeight) {
-      const newIndex = getIndex(newX, newY);
-      
-      const destElement = sands[newIndex];
-      const newCellIndex = newIndex / 4;
-      const closesLoop = trails[newCellIndex] > 0;
-      const fishCapture = isFishElement(destElement);
 
-      // Passable: air, city, harbor, home harbor, trail cells, fish (captured on contact)
-      if (destElement === 0 || destElement === 2 || destElement === 3 || destElement === 4 || closesLoop || fishCapture) {
-        if (fishCapture) {
-          useStore.getState().addFishCounts({ [destElement]: 1 });
-        }
+    if (newX < 0 || newX >= worldWidth || newY < 0 || newY >= worldHeight) continue;
 
-        // Arrive: write ship, store underlying element in RC
-        // For fish capture, store 0 so departure leaves a trail (not a fish cell)
-        sands[newIndex] = 7;
-        sands[newIndex + 1] = 0;
-        sands[newIndex + 2] = 0;
-        sands[newIndex + 3] = fishCapture ? 0 : destElement;
+    const newIndex = getIndex(newX, newY);
+    const destElement = sands[newIndex];
+    const newCellIndex = newIndex / 4;
+    const shipElem = sands[ship.index];
 
-        // Depart: restore underlying element (air→trail for physics, harbor→harbor)
-        const underlyingElement = sands[ship.index + 3];
+    // Loop closure: net = trail overlay, barrier = existing barrier element
+    const closesLoop = isBarrierTrail
+      ? destElement === ELEM_BARRIER_TRAIL
+      : trails[newCellIndex] > 0;
+
+    const fishCapture = isFishElement(destElement);
+
+    // Passable: air, city, harbor, home harbor, loop-closure cell, fish
+    if (destElement === 0 || destElement === 2 || destElement === 3 || destElement === 4 || closesLoop || fishCapture) {
+      if (fishCapture) {
+        useStore.getState().addFishCounts({ [destElement]: 1 });
+      }
+
+      // Arrive: ship moves to new cell, store underlying element in RC
+      sands[newIndex] = shipElem;
+      sands[newIndex + 1] = 0;
+      sands[newIndex + 2] = 0;
+      sands[newIndex + 3] = fishCapture ? 0 : destElement;
+
+      // Depart: place trail at old position
+      const underlyingElement = sands[ship.index + 3];
+      if (isBarrierTrail) {
+        // Barrier trail: place element 24 (permanent wall), no trails[] update
+        sands[ship.index] = underlyingElement === 0 ? ELEM_BARRIER_TRAIL : underlyingElement;
+        sands[ship.index + 1] = 0;
+        sands[ship.index + 2] = 0;
+        sands[ship.index + 3] = 0;
+      } else {
+        // Net trail: place element 8 + update trails[] direction overlay
         sands[ship.index] = underlyingElement === 0 ? 8 : underlyingElement;
         sands[ship.index + 1] = 0;
         sands[ship.index + 2] = 0;
         sands[ship.index + 3] = 0;
 
-        // Pack movement direction into trail overlay (bits 0-3 = dir1, bits 4-7 = dir2)
         const trailDir = (dx + 1) * 3 + (dy + 1) + 1;
         const existing = trails[ship.cellIndex];
         const dir1 = existing & 0x0F;
@@ -965,13 +1008,13 @@ function handleShipMovement() {
         } else if ((existing >> 4) === 0 && trailDir !== dir1) {
           trails[ship.cellIndex] = dir1 | (trailDir << 4);
         }
+      }
 
-        shipCooldowns.delete(ship.cellIndex);
-        shipCooldowns.set(newCellIndex, isNewKeyPress ? 0 : 1);
+      shipCooldowns.delete(ship.cellIndex);
+      shipCooldowns.set(newCellIndex, isNewKeyPress ? 0 : 1);
 
-        if (closesLoop) {
-          detectAndClearLoop();
-        }
+      if (closesLoop) {
+        detectAndClearLoop(activeTrailType);
       }
     }
   }

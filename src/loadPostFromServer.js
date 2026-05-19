@@ -11,9 +11,12 @@ export async function loadPostFromServer(postId) {
 
   // No ID → reset to starter elements
   if (!id || id.length < 1) {
-    useStore.getState().setXmls(starterXMLs);
+    useStore.getState().setXmls(starterXMLs.slice(0, MAX_ELEMENTS));
     useStore.setState({ expandedPostId: null });
-    const disabled = starterXMLs.map((_, i) => i >= 9);
+    // Default disabled: 9-10 disabled, 22-23 disabled, rest enabled
+    const disabled = Array.from({ length: MAX_ELEMENTS }, (_, i) =>
+      i === 9 || i === 10 || i === 22 || i === 23
+    );
     useStore.setState({ disabled });
     loadIntoEditor();
     return;
@@ -30,7 +33,7 @@ export async function loadPostFromServer(postId) {
   }
   const mapData = await res.json();
 
-  const { worldWidth, worldHeight, sandsBase64, disabled } = mapData;
+  const { worldWidth, worldHeight, sandsBase64, disabled: mapDisabled, xmls: mapXmls } = mapData;
   const mW = worldWidth  || 75;
   const mH = worldHeight || 75;
 
@@ -59,10 +62,21 @@ export async function loadPostFromServer(postId) {
     }
   }
 
-  // Set elements — always use full starterXMLs (map uses indices 0-18)
-  useStore.getState().setXmls(starterXMLs.slice(0, MAX_ELEMENTS));
+  // Merge per-map XMLs with starterXMLs defaults (map XMLs take precedence)
+  const fullXmls = starterXMLs.slice(0, MAX_ELEMENTS).map((defaultXml, i) =>
+    (mapXmls && mapXmls[i] != null) ? mapXmls[i] : defaultXml
+  );
+  useStore.getState().setXmls(fullXmls);
+
+  // Pad disabled array: old maps have 19 entries, new need MAX_ELEMENTS
+  const fullDisabled = Array.from({ length: MAX_ELEMENTS }, (_, i) => {
+    if (mapDisabled && i < mapDisabled.length) return mapDisabled[i];
+    if (i === 9 || i === 10) return true;   // Water, Sand
+    if (i === 22 || i === 23) return true;  // prototype fish
+    return false;
+  });
   useStore.setState({
-    disabled: disabled || new Array(MAX_ELEMENTS).fill(false),
+    disabled: fullDisabled,
     initialSelected: 9, // Water selected by default after loading a map
     paused: false,
     initialPaused: false,
